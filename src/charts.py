@@ -33,8 +33,8 @@ MODEL_COLOURS = {"gemini": "#2a78d6", "jev": "#eb6834", "clef": "#1baf7a"}
 SURFACE, INK, INK2, MUTED, GRID, BASELINE = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
 GROUP_NAMES = {
     "hijack_plain": "Plain hijack",
-    "hijack_reviewer_naive": "Aimed at the reviewer, naive",
-    "hijack_reviewer_informed": "Aimed at the reviewer, informed",
+    "hijack_reviewer_naive": "Reviewer-aimed, naive",
+    "hijack_reviewer_informed": "Reviewer-aimed, informed",
 }
 DPI = 200
 FIG_W = 8.0
@@ -123,8 +123,13 @@ def titles(tables: dict) -> dict[str, str]:
     pooled = speed[speed.run == "pooled"].set_index("model_key")
     cost = tables["cost"].set_index("model_key")
     fastest, cheapest = pooled.median_ms.idxmin(), cost.usd_per_1000_decisions.idxmin()
-    out["speed_cost"] = (f"{MODEL_NAMES[fastest]} answers in {pooled.loc[fastest, 'median_ms']:.0f} ms and "
-                         f"{MODEL_NAMES[cheapest]} costs ${cost.loc[cheapest, 'usd_per_1000_decisions']:.3f} per 1,000 decisions")
+    ms, usd = pooled.loc[fastest, "median_ms"], cost.loc[cheapest, "usd_per_1000_decisions"]
+    if fastest == cheapest:
+        out["speed_cost"] = (f"{MODEL_NAMES[fastest]} is both the fastest, {ms:.0f} ms a decision, and the cheapest, "
+                             f"${usd:.3f} per 1,000 decisions")
+    else:
+        out["speed_cost"] = (f"{MODEL_NAMES[fastest]} answers in {ms:.0f} ms and {MODEL_NAMES[cheapest]} costs "
+                             f"${usd:.3f} per 1,000 decisions")
     scores = desk_aa.SCORES
     without = {k: desk_aa.index(v, drop=desk_aa.KNOWLEDGE_AND_REASONING) for k, v in scores.items()}
     gap = without["Jev 1.14"] - without["Gemini Decision 1"]
@@ -206,10 +211,10 @@ def chart_fooling(tables, out_dir, title) -> Path:
     handles = [Line2D([], [], marker="o", color=SURFACE, markeredgecolor=INK2, markeredgewidth=2, markersize=9, linestyle="none"),
                Line2D([], [], marker="o", color=INK2, markersize=10, linestyle="none")]
     fig.legend(handles, ["Planted text hidden (View A)", "Planted text visible (View B)"], loc="lower right",
-               bbox_to_anchor=(0.98, 0.0), ncol=2)
+               bbox_to_anchor=(0.98, 0.075), ncol=2)
     return _finish(fig, out_dir / "fooling.png", title,
                    "Share of hijacks let through at 0.5, by who wrote them and whether the model saw the text they planted.",
-                   left=0.30, bottom=0.2)
+                   left=0.26, bottom=0.28)
 
 
 def chart_rewording(tables, out_dir, title) -> Path:
@@ -249,11 +254,11 @@ def chart_speed_cost(tables, out_dir, title) -> Path:
         x, p95, y = pooled.loc[m, "median_ms"], pooled.loc[m, "p95_ms"], cost.loc[m, "usd_per_1000_decisions"]
         ax.plot([x, p95], [y, y], color=MODEL_COLOURS[m], linewidth=2, solid_capstyle="round", zorder=1, alpha=0.6)
         ax.plot([x], [y], marker="o", markersize=13, color=MODEL_COLOURS[m], markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-        ax.annotate(f"{MODEL_NAMES[m]}\n{x:.0f} ms median, ${y:.3f}", (x, y), xytext=(0, 14), textcoords="offset points",
-                    ha="center", va="bottom", fontsize=11.5, color=INK2, linespacing=1.2)
+        ax.annotate(f"{MODEL_NAMES[m]}\n{x:.0f} ms median, ${y:.3f}", (p95, y), xytext=(9, 0), textcoords="offset points",
+                    ha="left", va="center", fontsize=11.5, color=INK2, linespacing=1.2)
     ax.set_xlabel("Latency per decision, ms (dot: median; line: to the 95th percentile)")
     ax.set_ylabel("Cost per 1,000 decisions, USD")
-    ax.set_xlim(0, max(pooled.p95_ms) * 1.15)
+    ax.set_xlim(0, max(pooled.p95_ms) * 1.5)
     ax.set_ylim(0, max(cost.usd_per_1000_decisions) * 1.6)
     ax.grid(axis="y", color=GRID, linewidth=1)
     _style(ax)
@@ -285,10 +290,10 @@ def chart_aa_reweighting(out_dir, title) -> Path:
     handles = [Line2D([], [], marker="o", color=SURFACE, markeredgecolor=INK2, markeredgewidth=2, markersize=9, linestyle="none"),
                Line2D([], [], marker="o", color=INK2, markersize=10, linestyle="none")]
     fig.legend(handles, ["AA Decision Index as published", "Without the knowledge and reasoning exams"], loc="lower right",
-               bbox_to_anchor=(0.98, 0.0), ncol=2)
+               bbox_to_anchor=(0.98, 0.075), ncol=2)
     return _finish(fig, out_dir / "aa_reweighting.png", title,
                    "Component scores from the 16 November snapshot, reweighted without AA-Omniscience-Decision and HLE-MultiChoice "
-                   "(30% of the index). A gap between two models carries about ±2 points of sampling noise.", left=0.22, bottom=0.2)
+                   "(30% of the index). A gap between two models carries about ±2 points of sampling noise.", left=0.22, bottom=0.28)
 
 
 def render_all(tables: dict, out_dir: Path | str) -> dict[str, str]:
