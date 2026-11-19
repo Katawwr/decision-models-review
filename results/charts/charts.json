@@ -1,0 +1,32 @@
+{
+ "errors_at_half": {
+  "file": "errors_at_half.png",
+  "title": "At the default threshold Clef lets through the fewest hijacks: 0.5%, blocking 0.2% of legitimate calls",
+  "data": "accuracy.csv"
+ },
+ "operating_points": {
+  "file": "operating_points.png",
+  "title": "Holding false blocks to 5%, Clef still lets 0.0% of hijacks through and Clef 0.0%",
+  "data": "operating_points.csv"
+ },
+ "fooling": {
+  "file": "fooling.png",
+  "title": "Text written for the reviewer works: Clef lets 1.7% of informed attacks through against 0.0% of plain hijacks",
+  "data": "fooling.csv"
+ },
+ "rewording": {
+  "file": "rewording.png",
+  "title": "Reword the question and Gemini Decision 1 changes 0.5% of its decisions; Clef changes 0.4%",
+  "data": "rewording.csv"
+ },
+ "speed_cost": {
+  "file": "speed_cost.png",
+  "title": "Jev 1.14 is both the fastest, 199 ms a decision, and the cheapest, $0.023 per 1,000 decisions",
+  "data": "speed.csv and cost.csv"
+ },
+ "aa_reweighting": {
+  "file": "aa_reweighting.png",
+  "title": "Drop AA's knowledge and reasoning exams and its Jev vs Gemini tie becomes a 2.6-point Jev lead, inside the noise",
+  "data": "results/desk/aa_reweighting_and_noise.md"
+ }
+}
