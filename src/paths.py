@@ -38,6 +38,9 @@ MODELS = {
 }
 GEMINI_DIRECT_MODEL = "gemini-decision-1"
 
+# OpenRouter providers to pin per model, with fallbacks off. Empty until the plan is signed off.
+PROVIDER_PINS: dict[str, str] = {}
+
 
 def read_jsonl(path: Path | str) -> list[dict]:
     path = Path(path)

@@ -151,11 +151,19 @@ class OpenRouterClient(_DecisionClient):
     url = OPENROUTER_URL
     env_var = "OPENROUTER_API_KEY"
 
+    def __init__(self, api_key: str | None = None, providers: dict | None = None, **kwargs):
+        super().__init__(api_key, **kwargs)
+        self._providers = dict(providers or {})
+
     def _headers(self, key: str) -> dict:
         return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
     def _body(self, model: str, state, questions: dict) -> dict:
-        return {"model": model, "state": state, "questions": questions}
+        body = {"model": model, "state": state, "questions": questions}
+        pinned = self._providers.get(model)
+        if pinned:
+            body["provider"] = {"order": [pinned], "allow_fallbacks": False}
+        return body
 
 
 class GeminiClient(_DecisionClient):

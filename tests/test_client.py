@@ -176,3 +176,17 @@ def test_missing_key_raises_a_clear_error(monkeypatch):
         c.OpenRouterClient()
     with pytest.raises(c.MissingKey):
         c.GeminiClient()
+
+
+def test_openrouter_can_pin_a_provider_for_one_model_and_leave_the_others_alone():
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json=OR_RESPONSE)
+
+    cl, _ = make_openrouter(handler, providers={"cloudflare/clef": "Cloudflare"})
+    cl.decide("cloudflare/clef", "STATE", QUESTIONS)
+    assert seen["body"]["provider"] == {"order": ["Cloudflare"], "allow_fallbacks": False}
+    cl.decide("typesafe/jev-1.14", "STATE", QUESTIONS)
+    assert "provider" not in seen["body"]

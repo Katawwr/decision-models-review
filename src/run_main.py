@@ -23,7 +23,7 @@ import questions
 import views
 from client import CallResult, GeminiClient, OpenRouterClient
 from manifest import build_manifest, load_rows
-from paths import GEMINI_DIRECT_MODEL, MODELS, RUNS
+from paths import GEMINI_DIRECT_MODEL, MODELS, PROVIDER_PINS, RUNS
 from runner import plan_tasks, run_tasks
 
 MAIN_RUNS = {
@@ -151,7 +151,7 @@ def main(argv=None) -> int:
         if "gemini-direct" in keys:
             clients["gemini-direct"] = GeminiClient()
         if keys - {"gemini-direct"}:
-            shared = OpenRouterClient()
+            shared = OpenRouterClient(providers=PROVIDER_PINS)
             for key in keys - {"gemini-direct"}:
                 clients[key] = shared
     pace = args.pace if args.pace is not None else MAIN_RUNS.get(args.run, {}).get("pace", 0.0)
