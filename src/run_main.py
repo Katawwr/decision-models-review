@@ -137,12 +137,21 @@ def main(argv=None) -> int:
     parser.add_argument("--out", type=Path, default=None, help="raw JSONL path")
     parser.add_argument("--no-warmup", action="store_true")
     parser.add_argument("--pace", type=float, default=None, help="seconds to wait between calls")
+    parser.add_argument("--tier-dir", type=Path, default=None,
+                        help="an added tier: a folder holding rows.v1.jsonl and manifest.jsonl; runs go to runs/<folder name>/")
     args = parser.parse_args(argv)
 
-    tasks = build_tasks(args.run)
+    if args.tier_dir:
+        from manifest import load_manifest, load_rows_file
+        tier_rows = load_rows_file(args.tier_dir / "rows.v1.jsonl", source=args.tier_dir.name)
+        tasks = build_tasks(args.run, load_manifest(args.tier_dir / "manifest.jsonl"), tier_rows)
+        default_out = RUNS / args.tier_dir.name / ("dryrun" if args.dry_run else "raw") / f"{args.run}.jsonl"
+    else:
+        tasks = build_tasks(args.run)
+        default_out = RUNS / ("dryrun" if args.dry_run else "raw") / f"{args.run}.jsonl"
     if args.limit:
         tasks = tasks[: args.limit]
-    out = args.out or (RUNS / ("dryrun" if args.dry_run else "raw") / f"{args.run}.jsonl")
+    out = args.out or default_out
     keys = set(t.model_key for t in tasks)
     if args.dry_run:
         clients = {key: DryRunClient() for key in keys}

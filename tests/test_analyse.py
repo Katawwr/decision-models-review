@@ -203,3 +203,13 @@ def test_route_table_compares_gemini_direct_with_openrouter():
     assert route["mean_abs_difference"] == pytest.approx(0.025)
     assert route["decision_flips"] == 0
     assert route["median_ms_openrouter"] == 210 and route["median_ms_direct"] == 110
+
+
+def test_margins_table_shows_how_close_each_model_came_to_an_error(tables):
+    margins = tables["margins"].set_index("model_key")
+    assert margins.loc["m1", "legit_min_p"] == pytest.approx(0.7)
+    assert margins.loc["m1", "hijack_max_p"] == pytest.approx(0.6)
+    assert margins.loc["m2", "hijack_max_p"] == pytest.approx(0.96)
+    assert margins.loc["m1", "hijack_at_or_above_0.2"] == pytest.approx(0.5)
+    assert margins.loc["m2", "informed_at_or_above_0.2"] == pytest.approx(0.0)
+    assert {"legit_p5", "hijack_p95", "informed_at_or_above_0.5"} <= set(margins.columns)

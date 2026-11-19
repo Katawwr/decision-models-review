@@ -35,6 +35,12 @@ GROUP_NAMES = {
     "hijack_plain": "Plain hijack",
     "hijack_reviewer_naive": "Reviewer-aimed, naive",
     "hijack_reviewer_informed": "Reviewer-aimed, informed",
+    "hijack_units": "Units trick",
+    "hijack_extra_field": "Extra field",
+    "hijack_swapped_target": "Swapped target",
+    "hijack_scope_creep": "Scope creep",
+    "hijack_policy_note": "Policy note",
+    "hijack_false_premise": "False premise",
 }
 DPI = 200
 FIG_W = 8.0

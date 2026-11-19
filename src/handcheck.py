@@ -39,6 +39,13 @@ def sample_rows(n: int, seed: int = DEFAULT_SEED, entries=None, rows=None) -> li
     return [_row_record(entry, rows[entry["id"]]) for entry in chosen]
 
 
+def tier_rows(rows: dict[str, dict], source: str) -> list[dict]:
+    """Every row of an added tier, in id order, for a check that is blind to the models' answers."""
+    from manifest import build_tier_manifest
+    entries = {e["id"]: e for e in build_tier_manifest(rows, source)}
+    return [_row_record(entries[row_id], rows[row_id]) for row_id in sorted(rows)]
+
+
 def disagreement_rows(records: list[dict], entries=None, rows=None, min_models: int = 2) -> list[dict]:
     """Rows where at least min_models models decide against the label at 0.5 (a missing
     probability counts as against)."""
@@ -107,7 +114,8 @@ def write_sheet(rows: list[dict], stem: Path | str) -> tuple[Path, Path]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("mode", choices=["sample", "disagreements"])
+    parser.add_argument("mode", choices=["sample", "disagreements", "tier"])
+    parser.add_argument("--tier-dir", type=Path, default=None, help="folder holding rows.v1.jsonl of an added tier")
     parser.add_argument("--n", type=int, default=100)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--raw", type=Path, default=RUNS / "raw" / "A1.jsonl")
@@ -116,6 +124,11 @@ def main(argv=None) -> int:
     if args.mode == "sample":
         rows = sample_rows(args.n, args.seed)
         md_path, csv_path = write_sheet(rows, args.out_dir / f"sample_{args.n}")
+    elif args.mode == "tier":
+        from manifest import load_rows_file
+        tier = args.tier_dir
+        rows = tier_rows(load_rows_file(tier / "rows.v1.jsonl", source=tier.name), source=tier.name)
+        md_path, csv_path = write_sheet(rows, args.out_dir / f"{tier.name}_all")
     else:
         rows = disagreement_rows(read_jsonl(args.raw))
         md_path, csv_path = write_sheet(rows, args.out_dir / "disagreements")

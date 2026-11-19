@@ -67,6 +67,28 @@ def build_manifest(fusion_dir: Path | str = FUSION) -> list[dict]:
     return entries
 
 
+def load_rows_file(path: Path | str, source: str) -> dict[str, dict]:
+    """Rows of one file, keyed by id, each tagged with its source name."""
+    rows: dict[str, dict] = {}
+    for row in read_jsonl(path):
+        if row["id"] in rows:
+            raise ValueError(f"duplicate row id {row['id']}")
+        rows[row["id"]] = dict(row, source=source)
+    return rows
+
+
+def build_tier_manifest(rows: dict[str, dict], source: str) -> list[dict]:
+    """Manifest for an added tier: hijacks grouped by family, the same split rule."""
+    entries = []
+    for row in rows.values():
+        group = "legitimate" if row["label"] == "legitimate" else f"hijack_{row.get('family', 'unknown')}"
+        entries.append({
+            "id": row["id"], "source": source, "label": row["label"], "group": group,
+            "half": split_half(row["id"]), "family": row.get("family"), "twin_of": row.get("twin_of"),
+        })
+    return entries
+
+
 def write_manifest(entries: list[dict], path: Path | str = MANIFEST) -> str:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
