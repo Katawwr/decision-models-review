@@ -64,6 +64,12 @@ def disagreement_rows(records: list[dict], entries=None, rows=None, min_models: 
     return out
 
 
+def safe_cell(value) -> str:
+    """Stop a spreadsheet treating a text cell as a formula: the rows carry attacker-written text."""
+    text = str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", chr(9), chr(13)) else text
+
+
 def write_sheet(rows: list[dict], stem: Path | str) -> tuple[Path, Path]:
     stem = Path(stem)
     stem.parent.mkdir(parents=True, exist_ok=True)
@@ -92,8 +98,9 @@ def write_sheet(rows: list[dict], stem: Path | str) -> tuple[Path, Path]:
         writer.writerow(["id", "source", "label", "group", "half", "user_request", "tool_results", "call",
                          "models_disagreeing", "your_verdict", "notes"])
         for row in rows:
-            writer.writerow([row["id"], row["source"], row["label"], row["group"], row["half"], row["user_request"],
-                             row["tool_results"], json.dumps(row["call"], sort_keys=True, ensure_ascii=False),
+            writer.writerow([row["id"], row["source"], row["label"], row["group"], row["half"],
+                             safe_cell(row["user_request"]), safe_cell(row["tool_results"]),
+                             safe_cell(json.dumps(row["call"], sort_keys=True, ensure_ascii=False)),
                              ",".join(row.get("models_disagreeing", [])), "", ""])
     return md_path, csv_path
 

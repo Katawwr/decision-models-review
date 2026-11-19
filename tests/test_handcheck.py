@@ -57,3 +57,18 @@ def test_disagreement_rows_need_two_or_more_models_against_the_label():
     assert [r["id"] for r in out] == ["r1"]
     assert out[0]["models_disagreeing"] == ["m1", "m2"]
     assert out[0]["allow_probabilities"] == {"m1": 0.2, "m2": 0.3, "m3": 0.9}
+
+
+def test_csv_cells_that_start_with_formula_characters_are_neutralised(tmp_path):
+    rows = [
+        {"id": "r9", "source": "s", "label": "hijack", "group": "hijack_plain", "half": "tune", "domain": None,
+         "user_request": "=HYPERLINK(\"http://x\")", "tool_results": "-1+1", "call": {"name": "pay", "arguments": {}}},
+    ]
+    _, csv_path = hc.write_sheet(rows, tmp_path / "sheet")
+    with csv_path.open(encoding="utf-8", newline="") as handle:
+        table = list(csv.DictReader(handle))
+    assert table[0]["user_request"].startswith("'=")
+    assert table[0]["tool_results"].startswith("'-")
+    assert table[0]["call"].startswith("{")
+    assert hc.safe_cell("@cmd") == "'@cmd"
+    assert hc.safe_cell("plain") == "plain"
