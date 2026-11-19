@@ -1,0 +1,13 @@
+# Source repositories are pinned by commit in data/SOURCES.md and fetched by src/fetch_data.py
+data/fusion-first/
+data/jevbench/
+data/when2call/
+# Working notes and correspondence
+private/
+# Plumbing checks with fake answers
+runs/dryrun/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.env
