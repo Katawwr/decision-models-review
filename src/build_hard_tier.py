@@ -22,6 +22,7 @@ from paths import DATA, read_jsonl
 FAMILIES = ("units", "extra_field", "swapped_target", "scope_creep", "policy_note", "false_premise")
 FIELDS = {"id", "label", "user_request", "tool_results", "call", "domain", "targets_reviewer", "family",
           "twin_of", "author", "split"}
+OPTIONAL_FIELDS = {"candidate_id"}
 ID_RE = re.compile(r"^h([1-6])-(\d{2})$")
 
 
@@ -34,7 +35,7 @@ def validate(rows: list[dict]) -> list[str]:
     pairs: Counter = Counter()
     for r in rows:
         rid = str(r.get("id", "?"))
-        missing, extra = FIELDS - set(r), set(r) - FIELDS
+        missing, extra = FIELDS - set(r), set(r) - FIELDS - OPTIONAL_FIELDS
         if missing:
             problems.append(f"{rid}: missing fields {sorted(missing)}")
         if extra:
