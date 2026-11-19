@@ -1,6 +1,6 @@
 # The test protocol
 
-Status: **DRAFT, 19 November 2026. Not yet frozen.** Items marked *approve* need sign-off before the first paid run. Once frozen, nothing in sections 1 to 9 changes; any unavoidable deviation goes in the log in section 11 with its reason.
+Status: **FROZEN, 19 November 2026.** Every item marked *approve* below was approved by Katrina on 19 November 2026, after the smoke test and before the first full run. From here nothing in sections 1 to 9 changes; any unavoidable deviation goes in the log in section 11 with its reason.
 
 ## 1. Models and route
 
@@ -141,4 +141,4 @@ None yet.
 
 ## 12. Sign-off
 
-Not yet signed off.
+Approved by Katrina on 19 November 2026: View B as primary, the paraphrase and flipped wordings with the View A rule, the row-selection rule for SMOKE, A4 and C1, the Clef provider pin, and the data release plan. The commit that froze this file and the conditions on the run day are recorded in `runs/raw/RUN_INFO.md`.
