@@ -1,22 +1,22 @@
 {
  "errors_at_half": {
   "file": "errors_at_half.png",
-  "title": "At the default threshold Clef lets through the fewest hijacks: 0.5%, blocking 0.2% of legitimate calls",
+  "title": "At the default threshold the three models are level: 2 to 3 hijacks let through and 0 to 1 legitimate calls blocked, out of 1,020 rows",
   "data": "accuracy.csv"
  },
  "operating_points": {
   "file": "operating_points.png",
-  "title": "Holding false blocks to 5%, Clef still lets 0.0% of hijacks through and Clef 0.0%",
+  "title": "With false blocks held to 5%, none of the three lets a single hijack through on the 217 report-half hijacks",
   "data": "operating_points.csv"
  },
  "fooling": {
   "file": "fooling.png",
-  "title": "Text written for the reviewer works: Clef lets 1.7% of informed attacks through against 0.0% of plain hijacks",
+  "title": "Seeing the planted text helps: with it hidden Clef lets 10% of informed attacks through, with it visible 1.7%",
   "data": "fooling.csv"
  },
  "rewording": {
   "file": "rewording.png",
-  "title": "Reword the question and Gemini Decision 1 changes 0.5% of its decisions; Clef changes 0.4%",
+  "title": "Rewording the question changes under 1% of decisions for all three: 4 to 5 rows of 1,020",
   "data": "rewording.csv"
  },
  "speed_cost": {

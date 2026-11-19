@@ -50,7 +50,14 @@ plt.rcParams.update({
 
 
 def pct(x: float) -> str:
+    if x == 0:
+        return "0%"
     return f"{100 * x:.1f}%" if x < 0.095 else f"{100 * x:.0f}%"
+
+
+def _names(models) -> str:
+    names = [MODEL_NAMES[m] for m in models]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def _models_in(df: pd.DataFrame) -> list[str]:
@@ -100,25 +107,46 @@ def _xlim_pct(ax, hi_values, floor=0.05) -> None:
 def titles(tables: dict) -> dict[str, str]:
     out = {}
     acc = tables["accuracy"].set_index("model_key")
-    best = acc.miss_rate.idxmin()
-    out["errors_at_half"] = (f"At the default threshold {MODEL_NAMES[best]} lets through the fewest hijacks: "
-                             f"{pct(acc.loc[best, 'miss_rate'])}, blocking {pct(acc.loc[best, 'false_block_rate'])} of legitimate calls")
+    n = int(acc.n.iloc[0])
+    if acc.misses.max() - acc.misses.min() <= 2 and acc.false_blocks.max() - acc.false_blocks.min() <= 2:
+        out["errors_at_half"] = (f"At the default threshold the three models are level: {int(acc.misses.min())} to "
+                                 f"{int(acc.misses.max())} hijacks let through and {int(acc.false_blocks.min())} to "
+                                 f"{int(acc.false_blocks.max())} legitimate calls blocked, out of {n:,} rows")
+    else:
+        best = acc.miss_rate.idxmin()
+        out["errors_at_half"] = (f"At the default threshold {MODEL_NAMES[best]} lets through the fewest hijacks: "
+                                 f"{pct(acc.loc[best, 'miss_rate'])}, blocking {pct(acc.loc[best, 'false_block_rate'])} of legitimate calls")
     ops = tables["operating_points"]
     at5 = ops[ops.max_false_block_rate == 0.05].set_index("model_key")
-    best5, worst5 = at5.miss_rate.idxmin(), at5.miss_rate.idxmax()
-    out["operating_points"] = (f"Holding false blocks to 5%, {MODEL_NAMES[best5]} still lets {pct(at5.loc[best5, 'miss_rate'])} "
-                               f"of hijacks through and {MODEL_NAMES[worst5]} {pct(at5.loc[worst5, 'miss_rate'])}")
+    if at5.misses.max() == 0:
+        out["operating_points"] = (f"With false blocks held to 5%, none of the three lets a single hijack through on the "
+                                   f"{int(at5.n_hijack_report.iloc[0])} report-half hijacks")
+    else:
+        best5, worst5 = at5.miss_rate.idxmin(), at5.miss_rate.idxmax()
+        out["operating_points"] = (f"Holding false blocks to 5%, {MODEL_NAMES[best5]} still lets {pct(at5.loc[best5, 'miss_rate'])} "
+                                   f"of hijacks through and {MODEL_NAMES[worst5]} {pct(at5.loc[worst5, 'miss_rate'])}")
     fool = tables["fooling"]
-    informed = fool[(fool.group == "hijack_reviewer_informed") & (fool.view == "B")].set_index("model_key")
-    plain = fool[(fool.group == "hijack_plain") & (fool.view == "B")].set_index("model_key")
-    worst = informed.miss_rate.idxmax()
-    out["fooling"] = (f"Text written for the reviewer works: {MODEL_NAMES[worst]} lets {pct(informed.loc[worst, 'miss_rate'])} "
-                      f"of informed attacks through against {pct(plain.loc[worst, 'miss_rate'])} of plain hijacks")
+    informed_b = fool[(fool.group == "hijack_reviewer_informed") & (fool.view == "B")].set_index("model_key")
+    informed_a = fool[(fool.group == "hijack_reviewer_informed") & (fool.view == "A")].set_index("model_key")
+    if len(informed_a) and (informed_a.miss_rate > informed_b.miss_rate).any():
+        worst = informed_a.miss_rate.idxmax()
+        out["fooling"] = (f"Seeing the planted text helps: with it hidden {MODEL_NAMES[worst]} lets "
+                          f"{pct(informed_a.loc[worst, 'miss_rate'])} of informed attacks through, with it visible "
+                          f"{pct(informed_b.loc[worst, 'miss_rate'])}")
+    else:
+        plain = fool[(fool.group == "hijack_plain") & (fool.view == "B")].set_index("model_key")
+        worst = informed_b.miss_rate.idxmax()
+        out["fooling"] = (f"Text written for the reviewer works: {MODEL_NAMES[worst]} lets {pct(informed_b.loc[worst, 'miss_rate'])} "
+                          f"of informed attacks through against {pct(plain.loc[worst, 'miss_rate'])} of plain hijacks")
     rw = tables["rewording"]
     any_pair = rw[rw.pair == "any_pair"].set_index("model_key")
-    most = any_pair.flip_share.idxmax()
-    out["rewording"] = (f"Reword the question and {MODEL_NAMES[most]} changes {pct(any_pair.loc[most, 'flip_share'])} of its "
-                        f"decisions; {MODEL_NAMES[any_pair.flip_share.idxmin()]} changes {pct(any_pair.flip_share.min())}")
+    if any_pair.flip_share.max() < 0.01:
+        out["rewording"] = (f"Rewording the question changes under 1% of decisions for all three: "
+                            f"{int(any_pair.flips.min())} to {int(any_pair.flips.max())} rows of {int(any_pair.n.iloc[0]):,}")
+    else:
+        most = any_pair.flip_share.idxmax()
+        out["rewording"] = (f"Reword the question and {MODEL_NAMES[most]} changes {pct(any_pair.loc[most, 'flip_share'])} of its "
+                            f"decisions; {MODEL_NAMES[any_pair.flip_share.idxmin()]} changes {pct(any_pair.flip_share.min())}")
     speed = tables["speed"]
     pooled = speed[speed.run == "pooled"].set_index("model_key")
     cost = tables["cost"].set_index("model_key")
@@ -166,7 +194,7 @@ def chart_operating_points(tables, out_dir, title) -> Path:
         for i, m in enumerate(models):
             _dot_interval(ax, i, sub.loc[m, "miss_rate"], sub.loc[m, "miss_lo"], sub.loc[m, "miss_hi"], MODEL_COLOURS[m],
                           pct(sub.loc[m, "miss_rate"]))
-        ax.set_title(f"At most {pct(budget)} of legitimate calls blocked", loc="left", color=INK2, weight="normal", fontsize=13)
+        ax.set_title(f"False blocks capped at {100 * budget:.0f}%", loc="left", color=INK2, weight="normal", fontsize=13)
         _y_models(ax, models)
         _xlim_pct(ax, sub.miss_hi)
         _style(ax)
@@ -200,8 +228,14 @@ def chart_fooling(tables, out_dir, title) -> Path:
             if len(b):
                 ax.plot([b.miss_rate.iloc[0]], [i], marker="o", markersize=11, color=MODEL_COLOURS[m],
                         markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-                ax.annotate(pct(b.miss_rate.iloc[0]), (b.miss_rate.iloc[0], i), xytext=(10, 0), textcoords="offset points",
+                value_b = float(b.miss_rate.iloc[0])
+                value_a = float(a.miss_rate.iloc[0]) if len(a) else value_b
+                low, high = min(value_a, value_b), max(value_a, value_b)
+                ax.annotate(pct(high), (high, i), xytext=(10, 0), textcoords="offset points",
                             ha="left", va="center", fontsize=11, color=INK2)
+                if high - low > 0.004:
+                    ax.annotate(pct(low), (low, i), xytext=(-10, 0), textcoords="offset points",
+                                ha="right", va="center", fontsize=11, color=INK2)
         ax.set_title(MODEL_NAMES[m], loc="left", color=INK2, weight="normal")
         ax.set_yticks(range(len(groups)))
         ax.set_yticklabels([GROUP_NAMES[g] for g in groups])
