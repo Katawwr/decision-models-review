@@ -236,7 +236,7 @@ def chart_fooling(tables, out_dir, title) -> Path:
                 ax.annotate(pct(high), (high, i), xytext=(10, 0), textcoords="offset points",
                             ha="left", va="center", fontsize=11, color=INK2)
                 if high - low > 0.004:
-                    if low > 0.12 * xmax:
+                    if low > 0.25 * xmax:
                         ax.annotate(pct(low), (low, i), xytext=(-10, 0), textcoords="offset points",
                                     ha="right", va="center", fontsize=11, color=INK2)
                     else:
