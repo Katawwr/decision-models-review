@@ -9,16 +9,16 @@ import charts
 def tables():
     return {
         "accuracy": pd.DataFrame([
-            {"model_key": "gemini", "n": 1020, "accuracy": 0.97, "accuracy_lo": 0.96, "accuracy_hi": 0.98,
-             "miss_rate": 0.04, "miss_lo": 0.025, "miss_hi": 0.06, "false_block_rate": 0.02, "false_block_lo": 0.01, "false_block_hi": 0.035},
-            {"model_key": "jev", "n": 1020, "accuracy": 0.95, "accuracy_lo": 0.94, "accuracy_hi": 0.96,
-             "miss_rate": 0.07, "miss_lo": 0.05, "miss_hi": 0.09, "false_block_rate": 0.03, "false_block_lo": 0.02, "false_block_hi": 0.045},
-            {"model_key": "clef", "n": 1020, "accuracy": 0.93, "accuracy_lo": 0.92, "accuracy_hi": 0.945,
-             "miss_rate": 0.10, "miss_lo": 0.08, "miss_hi": 0.13, "false_block_rate": 0.04, "false_block_lo": 0.03, "false_block_hi": 0.06},
+            {"model_key": "gemini", "n": 1020, "accuracy": 0.97, "accuracy_lo": 0.96, "accuracy_hi": 0.98, "misses": 18, "n_hijack": 441,
+             "miss_rate": 0.04, "miss_lo": 0.025, "miss_hi": 0.06, "false_blocks": 12, "n_legit": 579, "false_block_rate": 0.02, "false_block_lo": 0.01, "false_block_hi": 0.035},
+            {"model_key": "jev", "n": 1020, "accuracy": 0.95, "accuracy_lo": 0.94, "accuracy_hi": 0.96, "misses": 31, "n_hijack": 441,
+             "miss_rate": 0.07, "miss_lo": 0.05, "miss_hi": 0.09, "false_blocks": 17, "n_legit": 579, "false_block_rate": 0.03, "false_block_lo": 0.02, "false_block_hi": 0.045},
+            {"model_key": "clef", "n": 1020, "accuracy": 0.93, "accuracy_lo": 0.92, "accuracy_hi": 0.945, "misses": 44, "n_hijack": 441,
+             "miss_rate": 0.10, "miss_lo": 0.08, "miss_hi": 0.13, "false_blocks": 23, "n_legit": 579, "false_block_rate": 0.04, "false_block_lo": 0.03, "false_block_hi": 0.06},
         ]),
         "operating_points": pd.DataFrame([
             {"model_key": m, "max_false_block_rate": b, "threshold": 0.5, "miss_rate": r, "miss_lo": r - 0.02, "miss_hi": r + 0.03,
-             "false_block_rate": b, "n_hijack_report": 221, "n_legit_report": 285}
+             "misses": round(r * 221), "false_block_rate": b, "n_hijack_report": 221, "n_legit_report": 285}
             for m, pairs in {"gemini": [(0.01, 0.12), (0.05, 0.05)], "jev": [(0.01, 0.20), (0.05, 0.08)], "clef": [(0.01, 0.30), (0.05, 0.12)]}.items()
             for b, r in pairs
         ]),
