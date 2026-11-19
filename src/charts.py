@@ -213,6 +213,8 @@ def chart_fooling(tables, out_dir, title) -> Path:
     fig, axes = plt.subplots(1, len(models), figsize=(FIG_W, 4.2), sharey=True, sharex=True)
     axes = list(axes) if len(models) > 1 else [axes]
     hi_values = []
+    visible = fool[fool.view == "B"]
+    xmax = min(1.0, max(float(visible.wrong_hi.max()) * 1.45, 0.05)) if len(visible) else 0.1
     for ax, m in zip(axes, models):
         sub = fool[fool.model_key == m]
         for i, g in enumerate(groups):
@@ -234,14 +236,19 @@ def chart_fooling(tables, out_dir, title) -> Path:
                 ax.annotate(pct(high), (high, i), xytext=(10, 0), textcoords="offset points",
                             ha="left", va="center", fontsize=11, color=INK2)
                 if high - low > 0.004:
-                    ax.annotate(pct(low), (low, i), xytext=(-10, 0), textcoords="offset points",
-                                ha="right", va="center", fontsize=11, color=INK2)
+                    if low > 0.12 * xmax:
+                        ax.annotate(pct(low), (low, i), xytext=(-10, 0), textcoords="offset points",
+                                    ha="right", va="center", fontsize=11, color=INK2)
+                    else:
+                        ax.annotate(pct(low), (low, i), xytext=(0, -11), textcoords="offset points",
+                                    ha="center", va="top", fontsize=11, color=INK2)
         ax.set_title(MODEL_NAMES[m], loc="left", color=INK2, weight="normal")
         ax.set_yticks(range(len(groups)))
         ax.set_yticklabels([GROUP_NAMES[g] for g in groups])
-        ax.set_ylim(len(groups) - 0.5, -0.7)
+        ax.set_ylim(len(groups) - 0.3, -0.7)
         _style(ax)
-    _xlim_pct(axes[0], hi_values or [0.1])
+    axes[0].set_xlim(0, xmax)
+    axes[0].xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
     handles = [Line2D([], [], marker="o", color=SURFACE, markeredgecolor=INK2, markeredgewidth=2, markersize=9, linestyle="none"),
                Line2D([], [], marker="o", color=INK2, markersize=10, linestyle="none")]
     fig.legend(handles, ["Planted text hidden (View A)", "Planted text visible (View B)"], loc="lower right",
@@ -269,13 +276,13 @@ def chart_rewording(tables, out_dir, title) -> Path:
         value = float(worst.get(m, 0.0))
         axes[1].plot([0, value], [i, i], color=MODEL_COLOURS[m], linewidth=10, solid_capstyle="round", zorder=2)
         axes[1].annotate(f"{value:.2f}", (value, i), xytext=(9, 0), textcoords="offset points", va="center", fontsize=12, color=INK2)
-    axes[1].set_title("Largest mean swing in probability", loc="left", color=INK2, weight="normal", fontsize=13)
+    axes[1].set_title("Largest mean probability swing", loc="left", color=INK2, weight="normal", fontsize=13)
     axes[1].set_xlim(0, max(float(worst.max()) * 1.6, 0.05))
     _style(axes[1])
     return _finish(fig, out_dir / "rewording.png", title,
                    "Three wordings of the same question: the main one, a paraphrase and a flipped version. Left: rows whose "
                    "allow or block decision differs between any two wordings. Right: the largest mean absolute change in the "
-                   "probability across the three pairs.", left=0.24)
+                   "probability across the three pairs.", left=0.24, bottom=0.27)
 
 
 def chart_speed_cost(tables, out_dir, title) -> Path:
@@ -284,12 +291,15 @@ def chart_speed_cost(tables, out_dir, title) -> Path:
     cost = tables["cost"].set_index("model_key")
     models = [m for m in MODEL_ORDER if m in pooled.index and m in cost.index]
     fig, ax = plt.subplots(figsize=(FIG_W, 4.4))
+    cheapest = cost.loc[models, "usd_per_1000_decisions"].idxmin()
     for m in models:
         x, p95, y = pooled.loc[m, "median_ms"], pooled.loc[m, "p95_ms"], cost.loc[m, "usd_per_1000_decisions"]
         ax.plot([x, p95], [y, y], color=MODEL_COLOURS[m], linewidth=2, solid_capstyle="round", zorder=1, alpha=0.6)
         ax.plot([x], [y], marker="o", markersize=13, color=MODEL_COLOURS[m], markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-        ax.annotate(f"{MODEL_NAMES[m]}\n{x:.0f} ms median, ${y:.3f}", (p95, y), xytext=(9, 0), textcoords="offset points",
-                    ha="left", va="center", fontsize=11.5, color=INK2, linespacing=1.2)
+        below = m == cheapest and len(models) > 1
+        ax.annotate(f"{MODEL_NAMES[m]}\n{x:.0f} ms median, ${y:.3f}", (p95, y), xytext=(9, -4 if below else 0),
+                    textcoords="offset points", ha="left", va="top" if below else "center", fontsize=11.5, color=INK2,
+                    linespacing=1.2)
     ax.set_xlabel("Latency per decision, ms (dot: median; line: to the 95th percentile)")
     ax.set_ylabel("Cost per 1,000 decisions, USD")
     ax.set_xlim(0, max(pooled.p95_ms) * 1.5)
