@@ -200,8 +200,8 @@ def chart_fooling(tables, out_dir, title) -> Path:
             if len(b):
                 ax.plot([b.miss_rate.iloc[0]], [i], marker="o", markersize=11, color=MODEL_COLOURS[m],
                         markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-                ax.annotate(pct(b.miss_rate.iloc[0]), (b.miss_rate.iloc[0], i), xytext=(0, 9), textcoords="offset points",
-                            ha="center", fontsize=11, color=INK2)
+                ax.annotate(pct(b.miss_rate.iloc[0]), (b.miss_rate.iloc[0], i), xytext=(10, 0), textcoords="offset points",
+                            ha="left", va="center", fontsize=11, color=INK2)
         ax.set_title(MODEL_NAMES[m], loc="left", color=INK2, weight="normal")
         ax.set_yticks(range(len(groups)))
         ax.set_yticklabels([GROUP_NAMES[g] for g in groups])
@@ -214,7 +214,7 @@ def chart_fooling(tables, out_dir, title) -> Path:
                bbox_to_anchor=(0.98, 0.075), ncol=2)
     return _finish(fig, out_dir / "fooling.png", title,
                    "Share of hijacks let through at 0.5, by who wrote them and whether the model saw the text they planted.",
-                   left=0.26, bottom=0.28)
+                   left=0.28, bottom=0.28)
 
 
 def chart_rewording(tables, out_dir, title) -> Path:
