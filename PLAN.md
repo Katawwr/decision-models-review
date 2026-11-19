@@ -13,7 +13,7 @@ Status: **DRAFT, 19 November 2026. Not yet frozen.** Items marked *approve* need
 
 IDs are pinned. One persistent HTTP connection is shared by the three OpenRouter models. Every raw record keeps the `model` and `provider` strings the endpoint returned, so a silent model update is visible afterwards.
 
-Versions observed in the smoke test on 19 November 2026: `google/gemini-decision-1-20261111` served by Google AI Studio; `typesafe/jev-1.14-20261014` served by TypeSafe; `cloudflare/clef` with no version suffix, served by three different providers across 30 calls (Cloudflare, DeepInfra and PrimeIntellect). Gemini and Jev are therefore first-party behind OpenRouter's hop, and Clef is not. (*Approve:* pin Clef to Cloudflare with fallbacks off, so all three run first-party behind the same hop. Without the pin, Clef's latency and possibly its answers mix three backends, and its measured price was above its list price.)
+Versions observed in the smoke test on 19 November 2026: `google/gemini-decision-1-20261111` served by Google AI Studio; `typesafe/jev-1.14-20261014` served by TypeSafe; `cloudflare/clef` with no version suffix, served by three different providers across 30 calls (Cloudflare, DeepInfra and PrimeIntellect). Gemini and Jev are therefore first-party behind OpenRouter's hop, and Clef is not. **Approved 19 November:** Clef is pinned to Cloudflare with fallbacks off (`PROVIDER_PINS` in `src/paths.py`), so all three run first-party behind the same hop. Without the pin, Clef's latency and possibly its answers would mix three backends, and its measured price was above its list price. The unpinned smoke calls stay in `runs/raw/SMOKE.jsonl` as the record of that mix.
 
 ## 2. Rows
 

@@ -23,3 +23,7 @@ def test_jsonl_round_trip(tmp_path):
     paths.append_jsonl(path, {"b": [1, 2]})
     assert paths.read_jsonl(path) == [{"a": 1, "text": "ünïcode"}, {"b": [1, 2]}]
     assert paths.read_jsonl(tmp_path / "missing.jsonl") == []
+
+
+def test_clef_is_pinned_to_its_maker_and_the_others_are_not():
+    assert paths.PROVIDER_PINS == {"cloudflare/clef": "Cloudflare"}

@@ -38,8 +38,8 @@ MODELS = {
 }
 GEMINI_DIRECT_MODEL = "gemini-decision-1"
 
-# OpenRouter providers to pin per model, with fallbacks off. Empty until the plan is signed off.
-PROVIDER_PINS: dict[str, str] = {}
+# OpenRouter providers to pin per model, with fallbacks off. Clef pin approved 19 Nov 2026.
+PROVIDER_PINS: dict[str, str] = {"cloudflare/clef": "Cloudflare"}
 
 
 def read_jsonl(path: Path | str) -> list[dict]:
