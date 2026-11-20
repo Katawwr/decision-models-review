@@ -41,11 +41,13 @@ def apply_aa_filter(items: list[dict], filtered_ids: set[str]) -> tuple[list[dic
     return kept, removed
 
 
-def build_task(item: dict, seed: int = DEFAULT_SEED) -> dict:
+def build_task(item: dict, seed: int = DEFAULT_SEED, named: bool = False) -> dict:
+    """One When2Call task as a choice question. Labels are A to D in a per-task shuffled order,
+    or, with named=True, the category names themselves in the same shuffled order."""
     rng = random.Random(f"{seed}:{item['uuid']}")
     categories = list(CATEGORIES)
     rng.shuffle(categories)
-    option_to_category = dict(zip(LABELS, categories))
+    option_to_category = dict(zip(categories if named else LABELS, categories))
     criteria = {label: item["answers"][category] for label, category in option_to_category.items()}
     correct_label = next(label for label, category in option_to_category.items() if category == item["correct_answer"])
     tools = "\n".join(item["tools"])

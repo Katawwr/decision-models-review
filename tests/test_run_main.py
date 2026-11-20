@@ -136,3 +136,32 @@ def test_dry_run_client_is_deterministic_and_never_calls_the_network():
     choice = client.decide("m", "STATE 2", {"q": {"type": "choice", "instructions": "x", "criteria": {"A": "a", "B": "b"}}})
     assert set(choice.answers["q"]["probabilities"]) == {"A", "B"}
     assert abs(sum(choice.answers["q"]["probabilities"].values()) - 1.0) < 1e-9
+
+
+@needs_data
+def test_c2_sends_one_identical_choice_question_through_both_routes():
+    tasks = rm.build_tasks("C2")
+    assert len(tasks) == 100 * 2
+    assert {t.model_key for t in tasks} == {"gemini", "gemini-direct"}
+    by_row = {}
+    for t in tasks:
+        by_row.setdefault(t.row_id, {})[t.model_key] = t
+    first = next(iter(by_row.values()))
+    assert first["gemini"].questions == first["gemini-direct"].questions
+    assert first["gemini"].state == first["gemini-direct"].state
+    assert first["gemini"].questions["q"]["type"] == "choice"
+    assert "criteria" in first["gemini"].questions["q"]
+    assert first["gemini"].meta["route"] == "openrouter" and first["gemini-direct"].meta["route"] == "gemini"
+    assert rm.MAIN_RUNS.get("C2") is None and "C2" in rm.ALL_RUNS
+
+
+@needs_data
+def test_b2l_uses_category_names_as_labels_on_200_tasks():
+    tasks = rm.build_tasks("B2L")
+    assert len(tasks) == 200 * 3
+    q = tasks[0].questions["q"]
+    assert set(q["criteria"]) == {"tool_call", "request_for_info", "cannot_answer", "direct"}
+    assert tasks[0].meta["option_to_category"] == {c: c for c in q["criteria"]}
+    assert tasks[0].meta["correct_label"] == tasks[0].meta["correct_answer"]
+    b2_ids = {t.row_id for t in rm.build_tasks("B2")}
+    assert {t.row_id for t in tasks} <= b2_ids

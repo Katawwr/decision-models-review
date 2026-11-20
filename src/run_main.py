@@ -35,7 +35,9 @@ MAIN_RUNS = {
     "C1": {"view": "B", "wordings": ["main"], "rows": 200, "repeats": 1, "route": "gemini", "pace": 2.6},
 }
 BENCHMARK_RUNS = ("B1", "B2")
-ALL_RUNS = tuple(MAIN_RUNS) + BENCHMARK_RUNS
+EXTRA_RUNS = ("C2", "B2L")  # PLAN.md section 11 item 7
+ALL_RUNS = tuple(MAIN_RUNS) + BENCHMARK_RUNS + EXTRA_RUNS
+RUN_PACE = {"C1": 2.6, "C2": 2.6}
 
 
 def select_rows(entries: list[dict], how) -> list[dict]:
@@ -44,6 +46,24 @@ def select_rows(entries: list[dict], how) -> list[dict]:
         return list(entries)
     ranked = sorted(entries, key=lambda e: hashlib.sha1(e["id"].encode()).hexdigest())
     return ranked[: int(how)]
+
+
+def select_when2call(items: list[dict], n: int) -> list[dict]:
+    """The n When2Call tasks with the smallest SHA-1 of their uuid, in that order."""
+    return sorted(items, key=lambda i: hashlib.sha1(i["uuid"].encode()).hexdigest())[:n]
+
+
+def _when2call_planned(items: list[dict], named: bool, route: str, wording: str) -> list:
+    planned = []
+    for item in items:
+        task = cw.build_task(item, named=named)
+        meta = {
+            "route": route, "view": None, "wording": wording,
+            "option_to_category": task["option_to_category"], "correct_label": task["correct_label"],
+            "correct_answer": task["correct_answer"], "source_id": task["source_id"],
+        }
+        planned.append((task["uuid"], task["state"], {"q": task["question"]}, meta))
+    return planned
 
 
 def build_tasks(name: str, entries: list[dict] | None = None, rows: dict | None = None) -> list:
@@ -78,18 +98,19 @@ def build_tasks(name: str, entries: list[dict] | None = None, rows: dict | None 
             }
             planned.append((item["id"], item["state"], {"q": item["question"]}, meta))
         return plan_tasks(planned, dict(MODELS), {}, run="B1")
-    if name == "B2":
+    if name in ("B2", "B2L", "C2"):
         kept, _ = cw.apply_aa_filter(cw.load_items(), cw.load_filtered_source_ids())
-        planned = []
-        for item in kept:
-            task = cw.build_task(item)
-            meta = {
-                "route": "openrouter", "view": None, "wording": "when2call",
-                "option_to_category": task["option_to_category"], "correct_label": task["correct_label"],
-                "correct_answer": task["correct_answer"], "source_id": task["source_id"],
-            }
-            planned.append((task["uuid"], task["state"], {"q": task["question"]}, meta))
-        return plan_tasks(planned, dict(MODELS), {}, run="B2")
+        if name == "B2":
+            return plan_tasks(_when2call_planned(kept, False, "openrouter", "when2call"), dict(MODELS), {}, run="B2")
+        if name == "B2L":
+            planned = _when2call_planned(select_when2call(kept, 200), True, "openrouter", "when2call-named")
+            return plan_tasks(planned, dict(MODELS), {}, run="B2L")
+        planned = _when2call_planned(select_when2call(kept, 100), False, "mixed", "when2call")
+        models = {"gemini": MODELS["gemini"], "gemini-direct": GEMINI_DIRECT_MODEL}
+        tasks = plan_tasks(planned, models, {}, run="C2")
+        for task in tasks:
+            task.meta["route"] = "gemini" if task.model_key == "gemini-direct" else "openrouter"
+        return tasks
     raise ValueError(f"unknown run {name!r}; expected one of {ALL_RUNS}")
 
 
@@ -163,7 +184,7 @@ def main(argv=None) -> int:
             shared = OpenRouterClient(providers=PROVIDER_PINS)
             for key in keys - {"gemini-direct"}:
                 clients[key] = shared
-    pace = args.pace if args.pace is not None else MAIN_RUNS.get(args.run, {}).get("pace", 0.0)
+    pace = args.pace if args.pace is not None else RUN_PACE.get(args.run, MAIN_RUNS.get(args.run, {}).get("pace", 0.0))
     started = time.time()
     summary = run_tasks(tasks, clients, out, warmup=not args.no_warmup, max_cost=args.max_cost,
                         log=print, pace_seconds=pace)
