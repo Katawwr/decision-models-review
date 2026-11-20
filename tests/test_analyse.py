@@ -213,3 +213,67 @@ def test_margins_table_shows_how_close_each_model_came_to_an_error(tables):
     assert margins.loc["m1", "hijack_at_or_above_0.2"] == pytest.approx(0.5)
     assert margins.loc["m2", "informed_at_or_above_0.2"] == pytest.approx(0.0)
     assert {"legit_p5", "hijack_p95", "informed_at_or_above_0.5"} <= set(margins.columns)
+
+
+def test_between_models_views_compares_pairs_on_view_a_and_within_groups(tables):
+    t = tables["between_models_views"].set_index(["run", "subset", "pair"])
+    row = t.loc[("A2", "all", "m1_vs_m2")]
+    assert row["a_only"] == 5 and row["b_only"] == 0
+    assert row["accuracy_diff"] == pytest.approx(5 / 8)
+    legit = t.loc[("A2", "legitimate", "m1_vs_m2")]
+    assert legit["a_only"] == 3 and legit["b_only"] == 0
+    assert ("A1", "all", "m1_vs_m2") in t.index
+    assert ("A2", "hijack_reviewer_informed", "m1_vs_m2") in t.index
+
+
+def test_view_change_pairs_each_model_with_itself_across_views(tables):
+    vc = tables["view_change"].set_index(["model_key", "group"])
+    naive = vc.loc[("m1", "hijack_reviewer_naive")]
+    assert naive["wrong_view_b"] == 1 and naive["wrong_view_a"] == 0
+    assert naive["improved"] == 1 and naive["worsened"] == 0
+    legit = vc.loc[("m2", "legitimate")]
+    assert legit["worsened"] == 1 and legit["improved"] == 0
+    assert 0 < legit["mcnemar_p"] <= 1
+    assert legit["wrong_rate_diff_lo"] <= legit["wrong_rate_diff"] <= legit["wrong_rate_diff_hi"]
+    assert ("m1", "all") in vc.index
+
+
+def test_operating_points_crossfit_and_pooled_counts(tables):
+    cf = tables["operating_points_crossfit"].set_index(["model_key", "max_false_block_rate"])
+    m1 = cf.loc[("m1", 0.05)]
+    assert m1["threshold_report_fit"] == pytest.approx(0.7)
+    assert m1["misses_on_tune"] == 0
+    assert m1["hijacks_at_or_above_tune_threshold_all"] == 0
+    m2 = cf.loc[("m2", 0.05)]
+    assert m2["threshold_tune_fit"] == pytest.approx(0.4)
+    assert m2["hijacks_at_or_above_tune_threshold_all"] == 2
+    assert m2["of_which_in_tune_half"] == 1
+
+
+def test_quantisation_table_counts_grid_shares(tables):
+    q = tables["quantisation"].set_index(["model_key", "run"])
+    assert q.loc[("m1", "A1"), "n"] == 8
+    assert q.loc[("m1", "A1"), "share_exactly_0_or_1"] == 0.0
+    assert q.loc[("m1", "A1"), "share_on_0_01_grid"] == 1.0
+
+
+def test_cost_table_has_a_first_party_price_column_and_tokens_table_exists(tables):
+    assert "usd_per_1000_at_first_party_list" in tables["cost"].columns
+    tokens = tables["tokens"].set_index("model_key")
+    assert tokens.loc["m1", "mean_input_tokens"] == 200
+    assert "slope_vs_reference" in tokens.columns
+
+
+def test_between_on_items_pairs_models_on_shared_items():
+    per_task = pd.DataFrame([
+        {"model_key": "m1", "task_id": "u1", "correct": True, "decision_score": 99.5},
+        {"model_key": "m1", "task_id": "u2", "correct": False, "decision_score": 32.0},
+        {"model_key": "m2", "task_id": "u1", "correct": True, "decision_score": 90.0},
+        {"model_key": "m2", "task_id": "u2", "correct": True, "decision_score": 80.0},
+    ])
+    between = an.between_on_items(per_task, "task_id").set_index("pair")
+    row = between.loc["m1_vs_m2"]
+    assert row["n"] == 2 and row["a_only"] == 0 and row["b_only"] == 1
+    assert row["accuracy_diff"] == pytest.approx(-0.5)
+    assert row["decision_score_diff"] == pytest.approx((99.5 + 32.0 - 90.0 - 80.0) / 2)
+    assert row["decision_score_diff_lo"] <= row["decision_score_diff"] <= row["decision_score_diff_hi"]

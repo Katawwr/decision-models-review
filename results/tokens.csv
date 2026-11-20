@@ -1,0 +1,4 @@
+model_key,reference,n,mean_input_tokens,min_input_tokens,max_input_tokens,slope_vs_reference,intercept_vs_reference,r2_vs_reference
+clef,gemini,1020,403.02450980392155,319.0,491.0,0.9832671840603522,14.830625536894543,0.9897149203886071
+gemini,gemini,1020,394.8,309.0,479.0,,,
+jev,gemini,1020,569.3509803921569,484.0,661.0,1.0062621588762595,172.07868006780942,0.9868603670231876

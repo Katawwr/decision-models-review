@@ -167,8 +167,9 @@ def titles(tables: dict) -> dict[str, str]:
     scores = desk_aa.SCORES
     without = {k: desk_aa.index(v, drop=desk_aa.KNOWLEDGE_AND_REASONING) for k, v in scores.items()}
     gap = without["Jev 1.14"] - without["Gemini Decision 1"]
+    band = desk_aa.reweighted_gap_half_width(40)
     out["aa_reweighting"] = (f"Drop AA's knowledge and reasoning exams and its Jev vs Gemini tie becomes a {gap:.1f}-point Jev lead, "
-                             f"inside the noise")
+                             f"at the edge of a ±{band:.1f}-point noise band")
     return out
 
 
@@ -343,7 +344,8 @@ def chart_aa_reweighting(out_dir, title) -> Path:
                bbox_to_anchor=(0.98, 0.075), ncol=2)
     return _finish(fig, out_dir / "aa_reweighting.png", title,
                    "Component scores from the 16 November snapshot, reweighted without AA-Omniscience-Decision and HLE-MultiChoice "
-                   "(30% of the index). A gap between two models carries about ±2 points of sampling noise.", left=0.22, bottom=0.28)
+                   f"(30% of the index). On the reweighted index a gap between two models carries about ±{desk_aa.reweighted_gap_half_width(40):.1f} "
+                   "points of sampling noise at a per-item sd of 40.", left=0.22, bottom=0.28)
 
 
 def render_all(tables: dict, out_dir: Path | str) -> dict[str, str]:

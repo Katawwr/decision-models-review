@@ -40,3 +40,16 @@ def test_difference_half_width_is_wider_than_a_single_score():
     se = d.index_se(d.WEIGHTS, d.ITEMS, per_item_sd=40)
     assert d.half_width(se) == pytest.approx(1.96 * se)
     assert d.difference_half_width(se) == pytest.approx(1.96 * math.sqrt(2) * se)
+
+
+def test_reweighted_gap_band_uses_renormalised_weights():
+    full = d.difference_half_width(d.index_se(d.WEIGHTS, d.ITEMS, 40))
+    without = d.reweighted_gap_half_width(40)
+    assert without > full
+    assert without == pytest.approx(2.5, abs=0.1)
+
+
+def test_report_states_the_edge_not_inside():
+    text = d.report()
+    assert "inside the noise" not in text and "inside noise" not in text
+    assert "edge" in text

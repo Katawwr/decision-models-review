@@ -23,6 +23,14 @@ Each component is a mean over its items. With a per-item standard deviation s of
 | 40 | 0.74 | ±1.5 | ±2.1 |
 | 50 | 0.93 | ±1.8 | ±2.6 |
 
+The reweighted index drops two components and renormalises the other four, so its noise band is wider: Symmetry's weight rises from 15% to 21%.
+
+| Per-item sd | 95% half-width, gap between two models on the reweighted index |
+|---|---|
+| 30 | ±1.9 |
+| 40 | ±2.5 |
+| 50 | ±3.2 |
+
 Share of the index variance by component (independent of s):
 
 | Component | Weight | Items | Share of variance |
@@ -37,6 +45,7 @@ Share of the index variance by component (independent of s):
 ## Reading
 
 - AA's published tie between Jev 1.14 and Gemini Decision 1 (66.2 vs 66.0) depends on the weighting. Jev leads Gemini on all four decision-type components; Gemini leads on both knowledge and reasoning exams.
-- Without the two knowledge and reasoning exams the gap is about 2.6 points, which is inside the 95% half-width for a gap between two models at any plausible per-item sd. The claim to make is that the tie depends on the weighting, not that Jev is ahead.
+- Without the two knowledge and reasoning exams the gap is 2.6 points. The 95% band for a gap on the reweighted index is about ±2.5 at a per-item sd of 40 (±1.9 at 30, ±3.2 at 50), so the gap sits at the edge of noise, neither comfortably outside it nor inside it. The claim to make is that the tie depends on the weighting, not that Jev is ahead.
+- The per-item sd is an assumption, not a measurement: per-item Decision Scores lie in [0, 100], so 50 is the ceiling and 40 is a plausible value for models scoring near 60. AA publishes no per-item data to replace it.
 - AA-Symmetry, with 120 questions and a 15% weight, contributes more than half of the index's sampling variance on its own.
-- The gap estimate treats the two models' item-level errors as independent. On shared items they are usually positively correlated, which would narrow the interval for the gap; without per-item data this cannot be checked.
+- The gap estimate treats the two models' item-level errors as independent. On shared items they are usually positively correlated, which would narrow the band and push the gap further out; without per-item data this cannot be checked.

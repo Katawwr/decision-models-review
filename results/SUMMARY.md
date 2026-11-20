@@ -52,6 +52,14 @@
 | gemini | 1020 | 0.005378 | 99.58 |
 | jev | 1020 | 0.005626 | 99.57 |
 
+## margins
+
+| model_key | legit_min_p | legit_p5 | hijack_max_p | hijack_p95 | hijack_at_or_above_0.2 | hijack_at_or_above_0.5 | informed_at_or_above_0.2 | informed_at_or_above_0.5 |
+|---|---|---|---|---|---|---|---|---|
+| clef | 0.4573 | 0.8347 | 0.886 | 0.0558 | 0.01587 | 0.004535 | 0.05 | 0.01667 |
+| gemini | 0.4338 | 0.8457 | 0.9376 | 0.03171 | 0.00907 | 0.004535 | 0.03333 | 0.01667 |
+| jev | 0.53 | 0.87 | 0.98 | 0.09 | 0.02494 | 0.006803 | 0.08333 | 0.01667 |
+
 ## rewording
 
 | model_key | pair | n | flips | rows_changing | flip_share | flip_lo | flip_hi | mean_abs_change |
@@ -128,11 +136,19 @@
 
 ## cost
 
-| model_key | n_calls | usd_per_1000_decisions | mean_input_tokens | usd_per_1000_at_openrouter_list |
-|---|---|---|---|---|
-| clef | 4080 | 0.09143 | 380.9 | 0.07314 |
-| gemini | 4080 | 0.03714 | 371.4 | 0.03714 |
-| jev | 4080 | 0.02298 | 547.2 | 0.02298 |
+| model_key | n_calls | usd_per_1000_decisions | mean_input_tokens | usd_per_1000_at_openrouter_list | usd_per_1000_at_first_party_list |
+|---|---|---|---|---|---|
+| clef | 4080 | 0.09143 | 380.9 | 0.07314 | 0.09143 |
+| gemini | 4080 | 0.03714 | 371.4 | 0.03714 | 0.03714 |
+| jev | 4080 | 0.02298 | 547.2 | 0.02298 | 0.02298 |
+
+## tokens
+
+| model_key | reference | n | mean_input_tokens | min_input_tokens | max_input_tokens | slope_vs_reference | intercept_vs_reference | r2_vs_reference |
+|---|---|---|---|---|---|---|---|---|
+| clef | gemini | 1020 | 403 | 319 | 491 | 0.9833 | 14.83 | 0.9897 |
+| gemini | gemini | 1020 | 394.8 | 309 | 479 |  |  |  |
+| jev | gemini | 1020 | 569.4 | 484 | 661 | 1.006 | 172.1 | 0.9869 |
 
 ## between_models
 
@@ -141,6 +157,95 @@
 | clef_vs_gemini | 1020 | 2 | 2 | 1 | 0 | -0.003922 | 0.003922 | 0 | -0.006803 | 0.006803 |
 | clef_vs_jev | 1020 | 1 | 1 | 1 | 0 | -0.002941 | 0.002941 | -0.002268 | -0.006803 | 0 |
 | gemini_vs_jev | 1020 | 2 | 2 | 1 | 0 | -0.003922 | 0.003922 | -0.002268 | -0.01134 | 0.004535 |
+
+## between_models_views
+
+| run | subset | pair | n | a_only | b_only | mcnemar_p | accuracy_diff | accuracy_diff_lo | accuracy_diff_hi |
+|---|---|---|---|---|---|---|---|---|---|
+| A1 | all | clef_vs_gemini | 1020 | 2 | 2 | 1 | 0 | -0.003922 | 0.003922 |
+| A1 | all | clef_vs_jev | 1020 | 1 | 1 | 1 | 0 | -0.002941 | 0.002941 |
+| A1 | all | gemini_vs_jev | 1020 | 2 | 2 | 1 | 0 | -0.003922 | 0.003922 |
+| A1 | legitimate | clef_vs_gemini | 579 | 1 | 1 | 1 | 0 | -0.005181 | 0.005181 |
+| A1 | legitimate | clef_vs_jev | 579 | 0 | 1 | 1 | -0.001727 | -0.005181 | 0 |
+| A1 | legitimate | gemini_vs_jev | 579 | 0 | 1 | 1 | -0.001727 | -0.005181 | 0 |
+| A1 | hijack_plain | clef_vs_gemini | 281 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A1 | hijack_plain | clef_vs_jev | 281 | 1 | 0 | 1 | 0.003559 | 0 | 0.01068 |
+| A1 | hijack_plain | gemini_vs_jev | 281 | 1 | 0 | 1 | 0.003559 | 0 | 0.01068 |
+| A1 | hijack_reviewer_naive | clef_vs_gemini | 40 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A1 | hijack_reviewer_naive | clef_vs_jev | 40 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A1 | hijack_reviewer_naive | gemini_vs_jev | 40 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A1 | hijack_reviewer_informed | clef_vs_gemini | 120 | 1 | 1 | 1 | 0 | -0.025 | 0.025 |
+| A1 | hijack_reviewer_informed | clef_vs_jev | 120 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A1 | hijack_reviewer_informed | gemini_vs_jev | 120 | 1 | 1 | 1 | 0 | -0.025 | 0.025 |
+| A2 | all | clef_vs_gemini | 1020 | 32 | 13 | 0.006609 | 0.01863 | 0.005882 | 0.03137 |
+| A2 | all | clef_vs_jev | 1020 | 7 | 14 | 0.1892 | -0.006863 | -0.01569 | 0.001961 |
+| A2 | all | gemini_vs_jev | 1020 | 10 | 36 | 0.0001564 | -0.02549 | -0.03824 | -0.01275 |
+| A2 | legitimate | clef_vs_gemini | 579 | 32 | 4 | 1.942e-06 | 0.04836 | 0.02936 | 0.06908 |
+| A2 | legitimate | clef_vs_jev | 579 | 4 | 7 | 0.5488 | -0.005181 | -0.01727 | 0.005181 |
+| A2 | legitimate | gemini_vs_jev | 579 | 4 | 35 | 3.353e-07 | -0.05354 | -0.07427 | -0.03282 |
+| A2 | hijack_plain | clef_vs_gemini | 281 | 0 | 1 | 1 | -0.003559 | -0.01068 | 0 |
+| A2 | hijack_plain | clef_vs_jev | 281 | 0 | 1 | 1 | -0.003559 | -0.01068 | 0 |
+| A2 | hijack_plain | gemini_vs_jev | 281 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A2 | hijack_reviewer_naive | clef_vs_gemini | 40 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A2 | hijack_reviewer_naive | clef_vs_jev | 40 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A2 | hijack_reviewer_naive | gemini_vs_jev | 40 | 0 | 0 | 1 | 0 | 0 | 0 |
+| A2 | hijack_reviewer_informed | clef_vs_gemini | 120 | 0 | 8 | 0.007812 | -0.06667 | -0.1167 | -0.025 |
+| A2 | hijack_reviewer_informed | clef_vs_jev | 120 | 3 | 6 | 0.5078 | -0.025 | -0.075 | 0.025 |
+| A2 | hijack_reviewer_informed | gemini_vs_jev | 120 | 6 | 1 | 0.125 | 0.04167 | 0 | 0.09167 |
+
+## view_change
+
+| model_key | group | n | wrong_view_b | wrong_view_a | improved | worsened | mcnemar_p | wrong_rate_diff | wrong_rate_diff_lo | wrong_rate_diff_hi |
+|---|---|---|---|---|---|---|---|---|---|---|
+| clef | all | 1020 | 3 | 21 | 1 | 19 | 4.005e-05 | 0.01765 | 0.009804 | 0.02647 |
+| clef | hijack_plain | 281 | 0 | 2 | 0 | 2 | 0.5 | 0.007117 | 0 | 0.01779 |
+| clef | hijack_reviewer_informed | 120 | 2 | 12 | 0 | 10 | 0.001953 | 0.08333 | 0.04167 | 0.1333 |
+| clef | hijack_reviewer_naive | 40 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| clef | legitimate | 579 | 1 | 7 | 1 | 7 | 0.07031 | 0.01036 | 0.001727 | 0.02073 |
+| gemini | all | 1020 | 3 | 40 | 3 | 40 | 3.021e-09 | 0.03627 | 0.02451 | 0.04902 |
+| gemini | hijack_plain | 281 | 0 | 1 | 0 | 1 | 1 | 0.003559 | 0 | 0.01068 |
+| gemini | hijack_reviewer_informed | 120 | 2 | 4 | 2 | 4 | 0.6875 | 0.01667 | -0.025 | 0.05833 |
+| gemini | hijack_reviewer_naive | 40 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| gemini | legitimate | 579 | 1 | 35 | 1 | 35 | 1.077e-09 | 0.05872 | 0.03972 | 0.07945 |
+| jev | all | 1020 | 3 | 14 | 2 | 13 | 0.007385 | 0.01078 | 0.003922 | 0.01863 |
+| jev | hijack_plain | 281 | 1 | 1 | 1 | 1 | 1 | 0 | -0.01068 | 0.01068 |
+| jev | hijack_reviewer_informed | 120 | 2 | 9 | 1 | 8 | 0.03906 | 0.05833 | 0.01667 | 0.1083 |
+| jev | hijack_reviewer_naive | 40 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| jev | legitimate | 579 | 0 | 4 | 0 | 4 | 0.125 | 0.006908 | 0.001727 | 0.01382 |
+
+## operating_points_crossfit
+
+| model_key | max_false_block_rate | threshold_tune_fit | threshold_report_fit | misses_on_tune | n_hijack_tune | miss_rate_on_tune | false_block_rate_on_tune | hijacks_at_or_above_tune_threshold_all | of_which_in_tune_half | n_hijack_all |
+|---|---|---|---|---|---|---|---|---|---|---|
+| clef | 0.01 | 0.6058 | 0.7691 | 1 | 224 | 0.004464 | 0.02381 | 2 | 2 | 441 |
+| clef | 0.05 | 0.8281 | 0.847 | 1 | 224 | 0.004464 | 0.07483 | 1 | 1 | 441 |
+| gemini | 0.01 | 0.5688 | 0.5648 | 1 | 224 | 0.004464 | 0.006803 | 1 | 1 | 441 |
+| gemini | 0.05 | 0.8457 | 0.8496 | 1 | 224 | 0.004464 | 0.05102 | 1 | 1 | 441 |
+| jev | 0.01 | 0.71 | 0.67 | 1 | 224 | 0.004464 | 0.006803 | 1 | 1 | 441 |
+| jev | 0.05 | 0.87 | 0.86 | 1 | 224 | 0.004464 | 0.04082 | 1 | 1 | 441 |
+
+## quantisation
+
+| model_key | run | n | share_exactly_0_or_1 | share_on_0_01_grid | share_on_0_001_grid | mean_top_p |
+|---|---|---|---|---|---|---|
+| clef | A1 | 1020 | 0 | 0.007843 | 0.1078 | 0.9551 |
+| gemini | A1 | 1020 | 0 | 0.2059 | 0.2059 | 0.9623 |
+| jev | A1 | 1020 | 0 | 1 | 1 | 0.9627 |
+| clef | A2 | 1020 | 0 | 0.01275 | 0.1235 | 0.9335 |
+| gemini | A2 | 1020 | 0 | 0.1167 | 0.1167 | 0.8785 |
+| jev | A2 | 1020 | 0 | 1 | 1 | 0.9146 |
+| clef | B1-choice | 139 | 0 | 0.01439 | 0.1151 | 0.8752 |
+| gemini | B1-choice | 139 | 0 | 0 | 0 | 0.8993 |
+| jev | B1-choice | 139 | 0.5683 | 1 | 1 | 0.8824 |
+| clef | B1-noul | 74 | 0 | 0 | 0.09459 | 0.8723 |
+| gemini | B1-noul | 74 | 0 | 0.06757 | 0.06757 | 0.9044 |
+| jev | B1-noul | 74 | 0 | 1 | 1 | 0.8642 |
+| clef | B1-score | 18 | 0 | 0.05556 | 0.1111 | 0.8515 |
+| gemini | B1-score | 18 | 0 | 0 | 0 | 0.8384 |
+| jev | B1-score | 18 | 0.6667 | 1 | 1 | 0.8611 |
+| clef | B2 | 3423 | 0 | 0.006719 | 0.09173 | 0.7945 |
+| gemini | B2 | 3423 | 0 | 0 | 0 | 0.8412 |
+| jev | B2 | 3423 | 0.2194 | 1 | 1 | 0.8649 |
 
 ## errors
 
@@ -189,6 +294,14 @@
 | jev | original | 72 | 0.9861 | 0.9254 | 0.9975 | 0.3111 | 0.9798 | 0.02086 | 0.01597 | 98.78 | 0 | 0 | 0 | 201.5 |
 | jev | all | 231 | 0.8874 | 0.8402 | 0.922 | 0.3176 | 0.8351 | 0.144 | 0.05515 | 91.43 | 0 | 0 | 0 | 207 |
 
+## b1_between
+
+| pair | n | a_only | b_only | mcnemar_p | accuracy_diff | accuracy_diff_lo | accuracy_diff_hi | decision_score_diff | decision_score_diff_lo | decision_score_diff_hi |
+|---|---|---|---|---|---|---|---|---|---|---|
+| clef_vs_gemini | 231 | 3 | 12 | 0.03516 | -0.03896 | -0.07359 | -0.008658 | -3.011 | -5.316 | -0.9044 |
+| clef_vs_jev | 231 | 9 | 9 | 1 | 0 | -0.03463 | 0.03463 | -0.4987 | -2.832 | 1.752 |
+| gemini_vs_jev | 231 | 12 | 3 | 0.03516 | 0.03896 | 0.008658 | 0.07359 | 2.512 | 0.4901 | 4.643 |
+
 ## b2_models
 
 | model_key | n | accuracy | accuracy_lo | accuracy_hi | decision_score | missing | median_ms | usd_per_1000_decisions | by_category_accuracy_tool_call | by_category_accuracy_request_for_info | by_category_accuracy_cannot_answer | by_category_accuracy_direct |
@@ -196,6 +309,14 @@
 | clef | 3423 | 0.6959 | 0.6803 | 0.7111 | 75.83 | 0 | 309 | 0.2428 | 0.7429 | 0.9712 | 0.4718 |  |
 | gemini | 3423 | 0.8124 | 0.799 | 0.8252 | 85.2 | 0 | 301 | 0.09698 | 0.9259 | 0.9592 | 0.6046 |  |
 | jev | 3423 | 0.7935 | 0.7796 | 0.8067 | 83.07 | 0 | 201 | 0.05021 | 0.8849 | 0.9712 | 0.5876 |  |
+
+## b2_between
+
+| pair | n | a_only | b_only | mcnemar_p | accuracy_diff | accuracy_diff_lo | accuracy_diff_hi | decision_score_diff | decision_score_diff_lo | decision_score_diff_hi |
+|---|---|---|---|---|---|---|---|---|---|---|
+| clef_vs_gemini | 3423 | 123 | 522 | 2.178e-59 | -0.1166 | -0.1306 | -0.1025 | -9.37 | -10.32 | -8.441 |
+| clef_vs_jev | 3423 | 129 | 463 | 4.123e-45 | -0.09758 | -0.1113 | -0.08414 | -7.234 | -8.174 | -6.307 |
+| gemini_vs_jev | 3423 | 299 | 234 | 0.005519 | 0.01899 | 0.006135 | 0.03214 | 2.136 | 1.239 | 3.056 |
 
 ## route
 

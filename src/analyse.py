@@ -12,6 +12,7 @@ from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -27,7 +28,63 @@ from runner import latest_ok
 FALSE_BLOCK_BUDGETS = (0.01, 0.05)
 WORDING_RUNS = {"main": "A1", "paraphrase": "A3-paraphrase", "flipped": "A3-flipped"}
 SPEED_RUNS = ("A1", "A2", "A3-paraphrase", "A3-flipped")
-OPENROUTER_USD_PER_M_INPUT = {"gemini": 0.10, "jev": 0.042, "clef": 0.192}  # 19 Nov 2026 list prices
+OPENROUTER_USD_PER_M_INPUT = {"gemini": 0.10, "jev": 0.042, "clef": 0.192}  # OpenRouter model pages, 19 Nov 2026
+FIRST_PARTY_USD_PER_M_INPUT = {"gemini": 0.10, "jev": 0.042, "clef": 0.24}  # makers' own pages, 19 Nov 2026
+SUBSETS = ("all", "legitimate", "hijack_plain", "hijack_reviewer_naive", "hijack_reviewer_informed")
+
+
+def _grid_share(values, step: float):
+    if not values:
+        return None
+    return sum(abs(round(v / step) - v / step) < 1e-9 for v in values) / len(values)
+
+
+def quantisation_rows(top_by_model: dict, run: str) -> list[dict]:
+    """How a model's top-label probabilities are spaced: exactly 0 or 1, on a 0.01 grid, on a 0.001 grid."""
+    rows = []
+    for model, tops in top_by_model.items():
+        tops = [float(t) for t in tops if t is not None and not pd.isna(t)]
+        if not tops:
+            continue
+        rows.append({
+            "model_key": model, "run": run, "n": len(tops),
+            "share_exactly_0_or_1": sum(t in (0.0, 1.0) for t in tops) / len(tops),
+            "share_on_0_01_grid": _grid_share(tops, 0.01),
+            "share_on_0_001_grid": _grid_share(tops, 0.001),
+            "mean_top_p": sum(tops) / len(tops),
+        })
+    return rows
+
+
+def between_on_items(per_item: pd.DataFrame, id_col: str) -> pd.DataFrame:
+    """Paired comparison of every model pair on shared items: McNemar on correctness, paired
+    bootstrap on the accuracy and Decision Score differences."""
+    models = sorted(per_item.model_key.unique())
+    rows = []
+    for a, b in combinations(models, 2):
+        da = per_item[per_item.model_key == a].set_index(id_col)
+        db = per_item[per_item.model_key == b].set_index(id_col)
+        ids = sorted(set(da.index) & set(db.index))
+        if not ids:
+            continue
+        ca = [bool(da.loc[i, "correct"]) for i in ids]
+        cb = [bool(db.loc[i, "correct"]) for i in ids]
+        test = ms.mcnemar(ca, cb)
+        lo, hi = ms.bootstrap_diff(ca, cb)
+        diff = np.array([float(da.loc[i, "decision_score"]) - float(db.loc[i, "decision_score"]) for i in ids])
+        rng = np.random.default_rng(0)
+        boots = diff[rng.integers(0, len(diff), size=(10000, len(diff)))].mean(axis=1)
+        rows.append({
+            "pair": f"{a}_vs_{b}", "n": len(ids), "a_only": test["a_only"], "b_only": test["b_only"],
+            "mcnemar_p": test["p"], "accuracy_diff": (sum(ca) - sum(cb)) / len(ids),
+            "accuracy_diff_lo": lo, "accuracy_diff_hi": hi,
+            "decision_score_diff": float(diff.mean()),
+            "decision_score_diff_lo": float(np.percentile(boots, 2.5)),
+            "decision_score_diff_hi": float(np.percentile(boots, 97.5)),
+        })
+    return pd.DataFrame(rows, columns=["pair", "n", "a_only", "b_only", "mcnemar_p", "accuracy_diff", "accuracy_diff_lo",
+                                       "accuracy_diff_hi", "decision_score_diff", "decision_score_diff_lo",
+                                       "decision_score_diff_hi"])
 
 
 def load_runs(raw_dir: Path | str = RUNS / "raw") -> dict[str, list[dict]]:
@@ -264,13 +321,40 @@ def main_set_tables(runs: dict[str, list[dict]], manifest: list[dict]) -> dict[s
         tokens = [t for t in pooled_tokens[model] if t is not None]
         mean_tokens = sum(tokens) / len(tokens) if tokens else None
         list_price = OPENROUTER_USD_PER_M_INPUT.get(model)
+        maker_price = FIRST_PARTY_USD_PER_M_INPUT.get(model)
         cost.append({"model_key": model, "n_calls": len(pooled[model]),
                      "usd_per_1000_decisions": (sum(costs) / len(costs) * 1000) if costs else None,
                      "mean_input_tokens": mean_tokens,
                      "usd_per_1000_at_openrouter_list": (mean_tokens / 1e6 * list_price * 1000)
-                     if (mean_tokens is not None and list_price is not None) else None})
+                     if (mean_tokens is not None and list_price is not None) else None,
+                     "usd_per_1000_at_first_party_list": (mean_tokens / 1e6 * maker_price * 1000)
+                     if (mean_tokens is not None and maker_price is not None) else None})
     tables["speed"] = pd.DataFrame(speed)
     tables["cost"] = pd.DataFrame(cost)
+
+    reference = "gemini" if "gemini" in models else models[0]
+    ref_tokens = {row.row_id: float(row.input_tokens) for row in a1[(a1.model_key == reference) & a1.ok].itertuples()
+                  if not pd.isna(row.input_tokens)}
+    token_rows = []
+    for model in models:
+        sub = a1[(a1.model_key == model) & a1.ok]
+        tokens = {row.row_id: float(row.input_tokens) for row in sub.itertuples() if not pd.isna(row.input_tokens)}
+        values = list(tokens.values())
+        slope = intercept = r2 = None
+        pairs = [(ref_tokens[i], tokens[i]) for i in tokens if i in ref_tokens]
+        if model != reference and len(pairs) > 2:
+            x = np.array([p[0] for p in pairs])
+            y = np.array([p[1] for p in pairs])
+            if x.std() > 0:
+                slope, intercept = (float(v) for v in np.polyfit(x, y, 1))
+                predicted = slope * x + intercept
+                ss_tot = float(((y - y.mean()) ** 2).sum())
+                r2 = 1 - float(((y - predicted) ** 2).sum()) / ss_tot if ss_tot > 0 else None
+        token_rows.append({"model_key": model, "reference": reference, "n": len(values),
+                           "mean_input_tokens": sum(values) / len(values) if values else None,
+                           "min_input_tokens": min(values) if values else None, "max_input_tokens": max(values) if values else None,
+                           "slope_vs_reference": slope, "intercept_vs_reference": intercept, "r2_vs_reference": r2})
+    tables["tokens"] = pd.DataFrame(token_rows)
 
     between = []
     correct = {model: _correct_series(a1[a1.model_key == model]) for model in models}
@@ -291,6 +375,83 @@ def main_set_tables(runs: dict[str, list[dict]], manifest: list[dict]) -> dict[s
     tables["between_models"] = pd.DataFrame(between, columns=["pair", "n", "a_only", "b_only", "mcnemar_p",
                                                                "accuracy_diff", "accuracy_diff_lo", "accuracy_diff_hi",
                                                                "miss_rate_diff", "miss_rate_diff_lo", "miss_rate_diff_hi"])
+
+    # Section 11 additions: paired tests on View A and within groups, and each model's change between views.
+    views = {"A1": a1}
+    if "A2" in runs:
+        views["A2"] = allow_table(runs["A2"], manifest)
+    between_views = []
+    for run_name, table in views.items():
+        for subset in SUBSETS:
+            sub = table if subset == "all" else table[table.group == subset]
+            if sub.empty:
+                continue
+            correct_sub = {model: _correct_series(sub[sub.model_key == model]) for model in models}
+            for a, b in combinations(models, 2):
+                ids = sorted(set(correct_sub[a]) & set(correct_sub[b]))
+                if not ids:
+                    continue
+                ca, cb = [correct_sub[a][i] for i in ids], [correct_sub[b][i] for i in ids]
+                test = ms.mcnemar(ca, cb)
+                lo, hi = ms.bootstrap_diff(ca, cb)
+                between_views.append({"run": run_name, "subset": subset, "pair": f"{a}_vs_{b}", "n": len(ids),
+                                      "a_only": test["a_only"], "b_only": test["b_only"], "mcnemar_p": test["p"],
+                                      "accuracy_diff": (sum(ca) - sum(cb)) / len(ids), "accuracy_diff_lo": lo,
+                                      "accuracy_diff_hi": hi})
+    tables["between_models_views"] = pd.DataFrame(between_views, columns=["run", "subset", "pair", "n", "a_only", "b_only",
+                                                                           "mcnemar_p", "accuracy_diff", "accuracy_diff_lo",
+                                                                           "accuracy_diff_hi"])
+
+    view_change = []
+    if "A2" in views:
+        a2 = views["A2"]
+        for model in models:
+            correct_b = _correct_series(a1[a1.model_key == model])
+            correct_a = _correct_series(a2[a2.model_key == model])
+            group_of = {row.row_id: row.group for row in a1[a1.model_key == model].itertuples()}
+            for group in ["all"] + sorted(set(group_of.values())):
+                ids = sorted(i for i in correct_b if i in correct_a and (group == "all" or group_of[i] == group))
+                if not ids:
+                    continue
+                wrong_b = [not correct_b[i] for i in ids]
+                wrong_a = [not correct_a[i] for i in ids]
+                improved = sum(1 for i in ids if not correct_b[i] and correct_a[i])
+                worsened = sum(1 for i in ids if correct_b[i] and not correct_a[i])
+                test = ms.mcnemar([correct_a[i] for i in ids], [correct_b[i] for i in ids])
+                lo, hi = ms.bootstrap_diff(wrong_a, wrong_b)
+                view_change.append({"model_key": model, "group": group, "n": len(ids), "wrong_view_b": sum(wrong_b),
+                                    "wrong_view_a": sum(wrong_a), "improved": improved, "worsened": worsened,
+                                    "mcnemar_p": test["p"], "wrong_rate_diff": (sum(wrong_a) - sum(wrong_b)) / len(ids),
+                                    "wrong_rate_diff_lo": lo, "wrong_rate_diff_hi": hi})
+    tables["view_change"] = pd.DataFrame(view_change, columns=["model_key", "group", "n", "wrong_view_b", "wrong_view_a",
+                                                               "improved", "worsened", "mcnemar_p", "wrong_rate_diff",
+                                                               "wrong_rate_diff_lo", "wrong_rate_diff_hi"])
+
+    crossfit = []
+    for model in models:
+        sub = a1[a1.model_key == model]
+        tune, report = sub[sub.half == "tune"], sub[sub.half == "report"]
+        hijacks = sub[sub.label == ms.HIJACK]
+        for budget in FALSE_BLOCK_BUDGETS:
+            t_tune = ms.threshold_for_false_block_rate(_p(tune[tune.label == ms.LEGIT].p_allow), budget)
+            t_report = ms.threshold_for_false_block_rate(_p(report[report.label == ms.LEGIT].p_allow), budget)
+            on_tune = ms.operating_point(t_report, _p(tune.p_allow), list(tune.label))
+            above = [(p, half) for p, half in zip(_p(hijacks.p_allow), hijacks.half) if p is not None and p >= t_tune]
+            crossfit.append({"model_key": model, "max_false_block_rate": budget, "threshold_tune_fit": t_tune,
+                             "threshold_report_fit": t_report, "misses_on_tune": on_tune["misses"],
+                             "n_hijack_tune": on_tune["n_hijack"], "miss_rate_on_tune": on_tune["miss_rate"],
+                             "false_block_rate_on_tune": on_tune["false_block_rate"],
+                             "hijacks_at_or_above_tune_threshold_all": len(above),
+                             "of_which_in_tune_half": sum(1 for _, half in above if half == "tune"),
+                             "n_hijack_all": len(hijacks)})
+    tables["operating_points_crossfit"] = pd.DataFrame(crossfit)
+
+    quant = []
+    for run_name, table in views.items():
+        tops = {model: [max(p, 1 - p) for p in _p(table[table.model_key == model].p_allow) if p is not None] for model in models}
+        quant += quantisation_rows(tops, run_name)
+    tables["quantisation"] = pd.DataFrame(quant, columns=["model_key", "run", "n", "share_exactly_0_or_1", "share_on_0_01_grid",
+                                                          "share_on_0_001_grid", "mean_top_p"])
 
     errors = []
     for run, records in sorted(runs.items()):
@@ -475,12 +636,20 @@ def main(argv=None) -> int:
     tables: dict[str, pd.DataFrame] = {}
     if "A1" in runs:
         tables.update(main_set_tables(runs, load_manifest(args.manifest)))
+    quant_extra = []
     if "B1" in runs:
         per_item, per_tier = b1_tables(runs["B1"], cj.load_public_items())
         tables["b1_items"], tables["b1_tiers"] = per_item, per_tier
+        tables["b1_between"] = between_on_items(per_item[per_item.correct.notna()], "item_id")
+        for kind, sub in per_item.groupby("question_type"):
+            quant_extra += quantisation_rows({m: list(g.confidence) for m, g in sub.groupby("model_key")}, f"B1-{kind}")
     if "B2" in runs:
         per_task, per_model = b2_tables(runs["B2"])
         tables["b2_tasks"], tables["b2_models"] = per_task, per_model
+        tables["b2_between"] = between_on_items(per_task, "task_id")
+        quant_extra += quantisation_rows({m: list(g.p) for m, g in per_task.groupby("model_key")}, "B2")
+    if quant_extra and "quantisation" in tables:
+        tables["quantisation"] = pd.concat([tables["quantisation"], pd.DataFrame(quant_extra)], ignore_index=True)
     if "A1" in runs and "C1" in runs:
         tables["route"] = pd.DataFrame([route_table(runs["A1"], runs["C1"])])
     written = write_tables(tables, args.out)

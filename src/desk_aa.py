@@ -45,6 +45,19 @@ def variance_shares(weights: dict, items: dict, per_item_sd: float) -> dict:
     return {k: v / whole for k, v in parts.items()}
 
 
+def weights_without(drop) -> dict:
+    """The index weights with the dropped components removed and the rest renormalised to one."""
+    kept = {k: w for k, w in WEIGHTS.items() if k not in drop}
+    total = sum(kept.values())
+    return {k: w / total for k, w in kept.items()}
+
+
+def reweighted_gap_half_width(per_item_sd: float, drop=KNOWLEDGE_AND_REASONING) -> float:
+    """95% half-width for a gap between two models on the reweighted index, independent errors."""
+    weights = weights_without(drop)
+    return difference_half_width(index_se(weights, {k: ITEMS[k] for k in weights}, per_item_sd))
+
+
 def half_width(se: float, z: float = 1.96) -> float:
     return z * se
 
@@ -71,6 +84,11 @@ def report() -> str:
     for sd in (30, 40, 50):
         se = index_se(WEIGHTS, ITEMS, sd)
         lines.append(f"| {sd} | {se:.2f} | ±{half_width(se):.1f} | ±{difference_half_width(se):.1f} |")
+    lines += ["", "The reweighted index drops two components and renormalises the other four, so its noise band is wider: "
+              "Symmetry's weight rises from 15% to 21%.", "",
+              "| Per-item sd | 95% half-width, gap between two models on the reweighted index |", "|---|---|"]
+    for sd in (30, 40, 50):
+        lines.append(f"| {sd} | ±{reweighted_gap_half_width(sd):.1f} |")
     shares = variance_shares(WEIGHTS, ITEMS, 40)
     lines += ["", "Share of the index variance by component (independent of s):", "",
               "| Component | Weight | Items | Share of variance |", "|---|---|---|---|"]
@@ -78,9 +96,14 @@ def report() -> str:
         lines.append(f"| {k} | {WEIGHTS[k]:.2f} | {ITEMS[k]:,} | {100 * shares[k]:.0f}% |")
     lines += ["", "## Reading", "",
               "- AA's published tie between Jev 1.14 and Gemini Decision 1 (66.2 vs 66.0) depends on the weighting. Jev leads Gemini on all four decision-type components; Gemini leads on both knowledge and reasoning exams.",
-              "- Without the two knowledge and reasoning exams the gap is about 2.6 points, which is inside the 95% half-width for a gap between two models at any plausible per-item sd. The claim to make is that the tie depends on the weighting, not that Jev is ahead.",
+              f"- Without the two knowledge and reasoning exams the gap is {index(SCORES['Jev 1.14'], drop=KNOWLEDGE_AND_REASONING) - index(SCORES['Gemini Decision 1'], drop=KNOWLEDGE_AND_REASONING):.1f} points. "
+              f"The 95% band for a gap on the reweighted index is about ±{reweighted_gap_half_width(40):.1f} at a per-item sd of 40 "
+              f"(±{reweighted_gap_half_width(30):.1f} at 30, ±{reweighted_gap_half_width(50):.1f} at 50), so the gap sits at the edge of noise, "
+              "neither comfortably outside it nor inside it. The claim to make is that the tie depends on the weighting, not that Jev is ahead.",
+              "- The per-item sd is an assumption, not a measurement: per-item Decision Scores lie in [0, 100], so 50 is the ceiling and 40 "
+              "is a plausible value for models scoring near 60. AA publishes no per-item data to replace it.",
               "- AA-Symmetry, with 120 questions and a 15% weight, contributes more than half of the index's sampling variance on its own.",
-              "- The gap estimate treats the two models' item-level errors as independent. On shared items they are usually positively correlated, which would narrow the interval for the gap; without per-item data this cannot be checked."]
+              "- The gap estimate treats the two models' item-level errors as independent. On shared items they are usually positively correlated, which would narrow the band and push the gap further out; without per-item data this cannot be checked."]
     return "\n".join(lines) + "\n"
 
 
