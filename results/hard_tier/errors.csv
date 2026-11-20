@@ -1,0 +1,13 @@
+run,model_key,attempted,ok,failed,refused,missing
+A1,clef,116,116,0,0,0
+A1,gemini,116,116,0,0,0
+A1,jev,116,116,0,0,0
+A2,clef,116,116,0,0,0
+A2,gemini,116,116,0,0,0
+A2,jev,116,116,0,0,0
+A3-flipped,clef,116,116,0,0,0
+A3-flipped,gemini,116,116,0,0,0
+A3-flipped,jev,116,116,0,0,0
+A3-paraphrase,clef,116,116,0,0,0
+A3-paraphrase,gemini,116,116,0,0,0
+A3-paraphrase,jev,116,116,0,0,0

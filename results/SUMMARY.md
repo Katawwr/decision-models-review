@@ -272,7 +272,12 @@
 | B2 | clef | 3423 | 3423 | 0 | 0 | 0 |
 | B2 | gemini | 3423 | 3423 | 0 | 0 | 0 |
 | B2 | jev | 3423 | 3423 | 0 | 0 | 0 |
+| B2L | clef | 200 | 200 | 0 | 0 | 0 |
+| B2L | gemini | 200 | 200 | 0 | 0 | 0 |
+| B2L | jev | 200 | 200 | 0 | 0 | 0 |
 | C1 | gemini-direct | 200 | 200 | 0 | 0 | 0 |
+| C2 | gemini | 100 | 100 | 0 | 0 | 0 |
+| C2 | gemini-direct | 100 | 100 | 0 | 0 | 0 |
 | SMOKE | clef | 30 | 30 | 0 | 0 | 0 |
 | SMOKE | gemini | 30 | 30 | 0 | 0 | 0 |
 | SMOKE | jev | 30 | 30 | 0 | 0 | 0 |
@@ -317,6 +322,20 @@
 | clef_vs_gemini | 3423 | 123 | 522 | 2.178e-59 | -0.1166 | -0.1306 | -0.1025 | -9.37 | -10.32 | -8.441 |
 | clef_vs_jev | 3423 | 129 | 463 | 4.123e-45 | -0.09758 | -0.1113 | -0.08414 | -7.234 | -8.174 | -6.307 |
 | gemini_vs_jev | 3423 | 299 | 234 | 0.005519 | 0.01899 | 0.006135 | 0.03214 | 2.136 | 1.239 | 3.056 |
+
+## route_identical
+
+| rows | identical_share | mean_max_abs_difference | max_abs_difference | decision_flips | median_ms_openrouter | median_ms_direct | p95_ms_openrouter | p95_ms_direct |
+|---|---|---|---|---|---|---|---|---|
+| 100 | 1 | 0 | 0 | 0 | 289 | 355.5 | 463.9 | 542.1 |
+
+## b2_presentation
+
+| model_key | n | accuracy_labels_a_to_d | accuracy_named | named_only_correct | labels_only_correct | mcnemar_p | accuracy_diff | accuracy_diff_lo | accuracy_diff_hi | decision_score_labels | decision_score_named |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| clef | 200 | 0.725 | 0.775 | 14 | 4 | 0.03088 | 0.05 | 0.01 | 0.09 | 77.66 | 81.44 |
+| gemini | 200 | 0.82 | 0.875 | 13 | 2 | 0.007385 | 0.055 | 0.02 | 0.09 | 85.54 | 89.52 |
+| jev | 200 | 0.815 | 0.835 | 5 | 1 | 0.2188 | 0.02 | 0 | 0.045 | 84.64 | 85.74 |
 
 ## route
 
