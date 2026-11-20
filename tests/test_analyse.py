@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 
 import analyse as an
@@ -277,3 +278,51 @@ def test_between_on_items_pairs_models_on_shared_items():
     assert row["accuracy_diff"] == pytest.approx(-0.5)
     assert row["decision_score_diff"] == pytest.approx((99.5 + 32.0 - 90.0 - 80.0) / 2)
     assert row["decision_score_diff_lo"] <= row["decision_score_diff"] <= row["decision_score_diff_hi"]
+
+
+def crec(row_id, model, probs, latency):
+    return {"run": "C2", "row_id": row_id, "repeat": 0, "model_key": model, "ok": True, "refused": False, "p_yes": None,
+            "latency_ms": latency, "cost": 0, "input_tokens": 500, "warmup": False, "view": None, "wording": "when2call",
+            "answers": {"q": {"type": "choice", "choice": max(probs, key=probs.get), "probabilities": probs}},
+            "meta": {"option_to_category": {"A": "tool_call", "B": "direct", "C": "cannot_answer", "D": "request_for_info"},
+                     "correct_label": "A", "correct_answer": "tool_call"}}
+
+
+def test_route_within_run_compares_the_two_gemini_routes_on_identical_requests():
+    records = [
+        crec("u1", "gemini", {"A": 0.7, "B": 0.1, "C": 0.1, "D": 0.1}, 300),
+        crec("u1", "gemini-direct", {"A": 0.7, "B": 0.1, "C": 0.1, "D": 0.1}, 280),
+        crec("u2", "gemini", {"A": 0.4, "B": 0.5, "C": 0.05, "D": 0.05}, 320),
+        crec("u2", "gemini-direct", {"A": 0.55, "B": 0.35, "C": 0.05, "D": 0.05}, 260),
+    ]
+    out = an.route_within_run(records)
+    assert out["rows"] == 2
+    assert out["identical_share"] == pytest.approx(0.5)
+    assert out["decision_flips"] == 1
+    assert out["mean_max_abs_difference"] == pytest.approx((0.0 + 0.15) / 2)
+    assert out["median_ms_openrouter"] == 310 and out["median_ms_direct"] == 270
+
+
+def test_presentation_table_pairs_labelled_and_named_runs_per_task():
+    b2_tasks = pd.DataFrame([
+        {"model_key": "m1", "task_id": "u1", "correct": True, "decision_score": 99.0},
+        {"model_key": "m1", "task_id": "u2", "correct": False, "decision_score": 40.0},
+        {"model_key": "m1", "task_id": "u3", "correct": True, "decision_score": 90.0},
+    ])
+    named = [
+        dict(crec("u1", "m1", {"tool_call": 0.9, "direct": 0.05, "cannot_answer": 0.03, "request_for_info": 0.02}, 1),
+             meta={"option_to_category": {c: c for c in ("tool_call", "direct", "cannot_answer", "request_for_info")},
+                   "correct_label": "tool_call", "correct_answer": "tool_call"}),
+        dict(crec("u2", "m1", {"tool_call": 0.6, "direct": 0.2, "cannot_answer": 0.1, "request_for_info": 0.1}, 1),
+             meta={"option_to_category": {c: c for c in ("tool_call", "direct", "cannot_answer", "request_for_info")},
+                   "correct_label": "tool_call", "correct_answer": "tool_call"}),
+    ]
+    for r in named:
+        r["run"] = "B2L"
+    table = an.presentation_table(b2_tasks, named).set_index("model_key")
+    row = table.loc["m1"]
+    assert row["n"] == 2
+    assert row["accuracy_labels_a_to_d"] == pytest.approx(0.5)
+    assert row["accuracy_named"] == pytest.approx(1.0)
+    assert row["named_only_correct"] == 1 and row["labels_only_correct"] == 0
+    assert row["accuracy_diff_lo"] <= row["accuracy_diff"] <= row["accuracy_diff_hi"]

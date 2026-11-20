@@ -595,6 +595,74 @@ def route_table(a1_records: list[dict], c1_records: list[dict]) -> dict:
     }
 
 
+def route_within_run(records: list[dict]) -> dict:
+    """OpenRouter against Google's own API inside one run (C2): the same choice request, byte-identical in
+    content, sent both ways and interleaved, so the route is the only difference."""
+    final, _ = _final(records)
+    via = {k[1]: r for k, r in final.items() if k[2] == "gemini"}
+    own = {k[1]: r for k, r in final.items() if k[2] == "gemini-direct"}
+    common = sorted(set(via) & set(own))
+    identical = flips = 0
+    diffs = []
+    for row_id in common:
+        pa = (((via[row_id].get("answers") or {}).get("q")) or {}).get("probabilities") or {}
+        pb = (((own[row_id].get("answers") or {}).get("q")) or {}).get("probabilities") or {}
+        keys = sorted(set(pa) | set(pb))
+        if not keys:
+            continue
+        gaps = [abs(float(pa.get(k, 0.0)) - float(pb.get(k, 0.0))) for k in keys]
+        diffs.append(max(gaps))
+        if all(g == 0 for g in gaps):
+            identical += 1
+        if pa and pb and max(pa, key=lambda k: pa[k]) != max(pb, key=lambda k: pb[k]):
+            flips += 1
+    return {
+        "rows": len(common),
+        "identical_share": identical / len(common) if common else None,
+        "mean_max_abs_difference": sum(diffs) / len(diffs) if diffs else None,
+        "max_abs_difference": max(diffs) if diffs else None,
+        "decision_flips": flips,
+        "median_ms_openrouter": ms.latency_summary([via[r]["latency_ms"] for r in common])["median_ms"],
+        "median_ms_direct": ms.latency_summary([own[r]["latency_ms"] for r in common])["median_ms"],
+        "p95_ms_openrouter": ms.latency_summary([via[r]["latency_ms"] for r in common])["p95_ms"],
+        "p95_ms_direct": ms.latency_summary([own[r]["latency_ms"] for r in common])["p95_ms"],
+    }
+
+
+def presentation_table(b2_tasks: pd.DataFrame, named_records: list[dict]) -> pd.DataFrame:
+    """The same When2Call tasks with neutral labels A to D (B2) and with the category names as labels
+    (B2L), paired per task and model."""
+    final, _ = _final(named_records)
+    named: dict[str, dict] = {}
+    for key, rec in final.items():
+        _, task_id, model, _ = key
+        meta = rec.get("meta") or {}
+        task = {"option_to_category": meta["option_to_category"], "correct_label": meta["correct_label"],
+                "correct_answer": meta["correct_answer"]}
+        named.setdefault(model, {})[task_id] = cw.score_task(task, ((rec.get("answers") or {}).get("q")) if rec.get("ok") else None)
+    rows = []
+    for model, scored in sorted(named.items()):
+        base = b2_tasks[b2_tasks.model_key == model].set_index("task_id")
+        ids = sorted(i for i in scored if i in base.index)
+        if not ids:
+            continue
+        c_labels = [bool(base.loc[i, "correct"]) for i in ids]
+        c_named = [bool(scored[i]["correct"]) for i in ids]
+        test = ms.mcnemar(c_named, c_labels)
+        lo, hi = ms.bootstrap_diff(c_named, c_labels)
+        rows.append({
+            "model_key": model, "n": len(ids),
+            "accuracy_labels_a_to_d": sum(c_labels) / len(ids), "accuracy_named": sum(c_named) / len(ids),
+            "named_only_correct": test["a_only"], "labels_only_correct": test["b_only"], "mcnemar_p": test["p"],
+            "accuracy_diff": (sum(c_named) - sum(c_labels)) / len(ids), "accuracy_diff_lo": lo, "accuracy_diff_hi": hi,
+            "decision_score_labels": sum(float(base.loc[i, "decision_score"]) for i in ids) / len(ids),
+            "decision_score_named": sum(float(scored[i]["decision_score"]) for i in ids) / len(ids),
+        })
+    return pd.DataFrame(rows, columns=["model_key", "n", "accuracy_labels_a_to_d", "accuracy_named", "named_only_correct",
+                                       "labels_only_correct", "mcnemar_p", "accuracy_diff", "accuracy_diff_lo",
+                                       "accuracy_diff_hi", "decision_score_labels", "decision_score_named"])
+
+
 def _markdown(df: pd.DataFrame) -> str:
     def fmt(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -650,6 +718,10 @@ def main(argv=None) -> int:
         quant_extra += quantisation_rows({m: list(g.p) for m, g in per_task.groupby("model_key")}, "B2")
     if quant_extra and "quantisation" in tables:
         tables["quantisation"] = pd.concat([tables["quantisation"], pd.DataFrame(quant_extra)], ignore_index=True)
+    if "C2" in runs:
+        tables["route_identical"] = pd.DataFrame([route_within_run(runs["C2"])])
+    if "B2L" in runs and "b2_tasks" in tables:
+        tables["b2_presentation"] = presentation_table(tables["b2_tasks"], runs["B2L"])
     if "A1" in runs and "C1" in runs:
         tables["route"] = pd.DataFrame([route_table(runs["A1"], runs["C1"])])
     written = write_tables(tables, args.out)
