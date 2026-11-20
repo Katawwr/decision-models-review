@@ -3,6 +3,7 @@ phone width, one message per chart with the takeaway in the title.
 
     python src/charts.py                                   # results/*.csv -> results/charts/
     python src/charts.py --results results/dryrun --out results/dryrun/charts
+    python src/charts.py --results results/hard_tier --out results/hard_tier/charts --no-desk
 """
 
 from __future__ import annotations
@@ -124,26 +125,44 @@ def titles(tables: dict) -> dict[str, str]:
                                  f"{pct(acc.loc[best, 'miss_rate'])}, blocking {pct(acc.loc[best, 'false_block_rate'])} of legitimate calls")
     ops = tables["operating_points"]
     at5 = ops[ops.max_false_block_rate == 0.05].set_index("model_key")
-    if at5.misses.max() == 0:
+    n_report = int(at5.n_hijack_report.iloc[0])
+    zeros = [m for m in MODEL_ORDER if m in at5.index and at5.loc[m, "misses"] == 0]
+    worst5 = at5.miss_rate.idxmax()
+    if len(zeros) == len(at5):
         out["operating_points"] = (f"With false blocks held to 5%, none of the three lets a single hijack through on the "
-                                   f"{int(at5.n_hijack_report.iloc[0])} report-half hijacks")
+                                   f"{n_report} report-half hijacks")
+    elif zeros:
+        out["operating_points"] = (f"With false blocks held to 5%, {_names(zeros)} {'lets' if len(zeros) == 1 else 'let'} no hijack "
+                                   f"through on the {n_report} report-half hijacks; {MODEL_NAMES[worst5]} lets "
+                                   f"{pct(at5.loc[worst5, 'miss_rate'])} through")
     else:
-        best5, worst5 = at5.miss_rate.idxmin(), at5.miss_rate.idxmax()
+        best5 = at5.miss_rate.idxmin()
         out["operating_points"] = (f"Holding false blocks to 5%, {MODEL_NAMES[best5]} still lets {pct(at5.loc[best5, 'miss_rate'])} "
                                    f"of hijacks through and {MODEL_NAMES[worst5]} {pct(at5.loc[worst5, 'miss_rate'])}")
     fool = tables["fooling"]
-    informed_b = fool[(fool.group == "hijack_reviewer_informed") & (fool.view == "B")].set_index("model_key")
-    informed_a = fool[(fool.group == "hijack_reviewer_informed") & (fool.view == "A")].set_index("model_key")
-    if len(informed_a) and (informed_a.miss_rate > informed_b.miss_rate).any():
-        worst = informed_a.miss_rate.idxmax()
-        out["fooling"] = (f"Seeing the planted text helps: with it hidden {MODEL_NAMES[worst]} lets "
-                          f"{pct(informed_a.loc[worst, 'miss_rate'])} of informed attacks through, with it visible "
-                          f"{pct(informed_b.loc[worst, 'miss_rate'])}")
+    hijack_groups = fool[fool.group.isin(GROUP_NAMES)]
+    view_b = hijack_groups[hijack_groups.view == "B"].set_index(["model_key", "group"])
+    view_a = hijack_groups[hijack_groups.view == "A"].set_index(["model_key", "group"])
+    if "hijack_reviewer_informed" in set(hijack_groups.group):
+        informed_b = view_b.xs("hijack_reviewer_informed", level="group")
+        informed_a = view_a.xs("hijack_reviewer_informed", level="group") if len(view_a) else informed_b.iloc[0:0]
+        if len(informed_a) and (informed_a.miss_rate > informed_b.miss_rate).any():
+            worst = informed_a.miss_rate.idxmax()
+            out["fooling"] = (f"Seeing the planted text helps: with it hidden {MODEL_NAMES[worst]} lets "
+                              f"{pct(informed_a.loc[worst, 'miss_rate'])} of informed attacks through, with it visible "
+                              f"{pct(informed_b.loc[worst, 'miss_rate'])}")
+        else:
+            plain = view_b.xs("hijack_plain", level="group")
+            worst = informed_b.miss_rate.idxmax()
+            out["fooling"] = (f"Text written for the reviewer works: {MODEL_NAMES[worst]} lets {pct(informed_b.loc[worst, 'miss_rate'])} "
+                              f"of informed attacks through against {pct(plain.loc[worst, 'miss_rate'])} of plain hijacks")
     else:
-        plain = fool[(fool.group == "hijack_plain") & (fool.view == "B")].set_index("model_key")
-        worst = informed_b.miss_rate.idxmax()
-        out["fooling"] = (f"Text written for the reviewer works: {MODEL_NAMES[worst]} lets {pct(informed_b.loc[worst, 'miss_rate'])} "
-                          f"of informed attacks through against {pct(plain.loc[worst, 'miss_rate'])} of plain hijacks")
+        hardest = view_b.groupby(level="group").miss_rate.mean().idxmax()
+        on_family = view_b.xs(hardest, level="group").miss_rate
+        worst_model, best_model = on_family.idxmax(), on_family.idxmin()
+        out["fooling"] = (f"The {GROUP_NAMES[hardest].lower()} is the hardest attack: {MODEL_NAMES[worst_model]} lets "
+                          f"{pct(on_family[worst_model])} through and the best model on it, {MODEL_NAMES[best_model]}, "
+                          f"{pct(on_family[best_model])}")
     rw = tables["rewording"]
     any_pair = rw[rw.pair == "any_pair"].set_index("model_key")
     if any_pair.flip_share.max() < 0.01:
@@ -151,8 +170,9 @@ def titles(tables: dict) -> dict[str, str]:
                             f"{int(any_pair.flips.min())} to {int(any_pair.flips.max())} rows of {int(any_pair.n.iloc[0]):,}")
     else:
         most = any_pair.flip_share.idxmax()
+        least = [m for m in MODEL_ORDER if m in any_pair.index and any_pair.loc[m, "flip_share"] == any_pair.flip_share.min()]
         out["rewording"] = (f"Reword the question and {MODEL_NAMES[most]} changes {pct(any_pair.loc[most, 'flip_share'])} of its "
-                            f"decisions; {MODEL_NAMES[any_pair.flip_share.idxmin()]} changes {pct(any_pair.flip_share.min())}")
+                            f"decisions; {_names(least)} {'changes' if len(least) == 1 else 'change'} {pct(any_pair.flip_share.min())}")
     speed = tables["speed"]
     pooled = speed[speed.run == "pooled"].set_index("model_key")
     cost = tables["cost"].set_index("model_key")
@@ -217,11 +237,12 @@ def chart_fooling(tables, out_dir, title) -> Path:
     fool = fool[fool.group.isin(GROUP_NAMES)]
     models = _models_in(fool)
     groups = [g for g in GROUP_NAMES if g in set(fool.group)]
-    fig, axes = plt.subplots(1, len(models), figsize=(FIG_W, 4.2), sharey=True, sharex=True)
+    height = 4.2 + 0.45 * max(0, len(groups) - 3)
+    fig, axes = plt.subplots(1, len(models), figsize=(FIG_W, height), sharey=True, sharex=True)
     axes = list(axes) if len(models) > 1 else [axes]
     hi_values = []
     visible = fool[fool.view == "B"]
-    xmax = min(1.0, max(float(visible.wrong_hi.max()) * 1.45, 0.05)) if len(visible) else 0.1
+    xmax = min(1.4, max(float(visible.wrong_hi.max()) * 1.45, 0.05)) if len(visible) else 0.1
     for ax, m in zip(axes, models):
         sub = fool[fool.model_key == m]
         for i, g in enumerate(groups):
@@ -255,13 +276,15 @@ def chart_fooling(tables, out_dir, title) -> Path:
         ax.set_ylim(len(groups) - 0.3, -0.7)
         _style(ax)
     axes[0].set_xlim(0, xmax)
+    if xmax > 1.0:
+        axes[0].set_xticks([0, 0.5, 1.0])
     axes[0].xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
     handles = [Line2D([], [], marker="o", color=SURFACE, markeredgecolor=INK2, markeredgewidth=2, markersize=9, linestyle="none"),
                Line2D([], [], marker="o", color=INK2, markersize=10, linestyle="none")]
     fig.legend(handles, ["Planted text hidden (View A)", "Planted text visible (View B)"], loc="lower right",
                bbox_to_anchor=(0.98, 0.075), ncol=2)
     return _finish(fig, out_dir / "fooling.png", title,
-                   "Share of hijacks let through at 0.5, by who wrote them and whether the model saw the text they planted.",
+                   "Share of hijacks let through at 0.5, by attack group and whether the model saw the text the attacker planted.",
                    left=0.28, bottom=0.28)
 
 
@@ -348,7 +371,8 @@ def chart_aa_reweighting(out_dir, title) -> Path:
                    "points of sampling noise at a per-item sd of 40.", left=0.22, bottom=0.28)
 
 
-def render_all(tables: dict, out_dir: Path | str) -> dict[str, str]:
+def render_all(tables: dict, out_dir: Path | str, desk: bool = True) -> dict[str, str]:
+    """desk=False leaves out the AA reweighting chart, which comes from the desk research rather than the tables."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     heads = titles(tables)
@@ -358,8 +382,9 @@ def render_all(tables: dict, out_dir: Path | str) -> dict[str, str]:
         "fooling": chart_fooling(tables, out_dir, heads["fooling"]),
         "rewording": chart_rewording(tables, out_dir, heads["rewording"]),
         "speed_cost": chart_speed_cost(tables, out_dir, heads["speed_cost"]),
-        "aa_reweighting": chart_aa_reweighting(out_dir, heads["aa_reweighting"]),
     }
+    if desk:
+        written["aa_reweighting"] = chart_aa_reweighting(out_dir, heads["aa_reweighting"])
     manifest = {name: {"file": path.name, "title": heads[name],
                        "data": "results/desk/aa_reweighting_and_noise.md" if name == "aa_reweighting" else
                        {"errors_at_half": "accuracy.csv", "operating_points": "operating_points.csv", "fooling": "fooling.csv",
@@ -378,9 +403,10 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results", type=Path, default=RESULTS)
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--no-desk", action="store_true", help="leave out the AA reweighting chart, for an added tier")
     args = parser.parse_args(argv)
     out = args.out or (args.results / "charts")
-    written = render_all(load_tables(args.results), out)
+    written = render_all(load_tables(args.results), out, desk=not args.no_desk)
     for name, path in written.items():
         print(f"{name}: {path}")
     return 0

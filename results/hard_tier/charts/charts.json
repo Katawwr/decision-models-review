@@ -1,0 +1,27 @@
+{
+ "errors_at_half": {
+  "file": "errors_at_half.png",
+  "title": "At the default threshold Gemini Decision 1 lets through the fewest hijacks: 14%, blocking 1.7% of legitimate calls",
+  "data": "accuracy.csv"
+ },
+ "operating_points": {
+  "file": "operating_points.png",
+  "title": "With false blocks held to 5%, Gemini Decision 1 and Clef let no hijack through on the 32 report-half hijacks; Jev 1.14 lets 6.2% through",
+  "data": "operating_points.csv"
+ },
+ "fooling": {
+  "file": "fooling.png",
+  "title": "The units trick is the hardest attack: Jev 1.14 lets 100% through and the best model on it, Gemini Decision 1, 50%",
+  "data": "fooling.csv"
+ },
+ "rewording": {
+  "file": "rewording.png",
+  "title": "Reword the question and Jev 1.14 changes 6.0% of its decisions; Gemini Decision 1 and Clef change 5.2%",
+  "data": "rewording.csv"
+ },
+ "speed_cost": {
+  "file": "speed_cost.png",
+  "title": "Jev 1.14 is both the fastest, 176 ms a decision, and the cheapest, $0.027 per 1,000 decisions",
+  "data": "speed.csv and cost.csv"
+ }
+}

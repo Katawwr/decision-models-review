@@ -17,3 +17,10 @@
 OpenRouter's model page shows one price per model, which appears to be the cheapest provider's. The pinned Cloudflare price is 25% above it and equals Cloudflare's own list price. For all three models the maker's own price and the price paid through OpenRouter are the same, so OpenRouter adds no mark-up here.
 
 Makers' prices read on 19 November 2026 from: https://ai.google.dev/gemini-api/docs/pricing (Gemini Decision 1 section); https://docs.typesafe.ai/models (price table, Jev 1.14 available from 14 October 2026); https://developers.cloudflare.com/workers-ai/platform/pricing/ (other model pricing table, page modified 18 November 2026).
+
+## Second run day, 20 November 2026
+
+- Plan state: sections 1 to 9 frozen since 19 November; the hard tier (section 13) and the two extra runs (section 11, item 9) were recorded in the plan before their rows were selected or their calls made. Commit history carries the order.
+- Runs: hard tier A1, A2, A3 into `runs/hard_tier/raw/` (18:49 to 18:56 UTC); C2 and B2L into `runs/raw/` (18:55 to 19:08 UTC). Same client, OpenRouter route, Clef pin and key handling as the first day. C2 sends the identical choice request to Google's own API and to OpenRouter, interleaved, paced at one call per 2.6 s because the direct calls use the free tier.
+- Model versions returned: the same strings as on 19 November for the OpenRouter models. The direct Gemini calls return no model string.
+- Prices: unchanged from the table above, checked by the per-call `usage.cost` of the new runs.
