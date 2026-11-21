@@ -111,6 +111,60 @@ def _xlim_pct(ax, hi_values, floor=0.05) -> None:
     ax.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
 
 
+def frontier(points: dict) -> list[str]:
+    """The models no other beats on both axes: points are {model: (cost_like, accuracy)}, lower cost and higher
+    accuracy better. Returned in cost order. At equal cost the more accurate wins; at equal accuracy the cheaper."""
+    best, out = None, []
+    for model in sorted(points, key=lambda m: (points[m][0], -points[m][1])):
+        if best is None or points[model][1] > best:
+            out.append(model)
+            best = points[model][1]
+    return out
+
+
+def _place_labels(ax, items, fontsize=11) -> None:
+    """Annotate points, trying four slots per label and keeping the first clear of the other labels and points."""
+    scale = ax.figure.dpi / 72.0
+    char_w, line_h = fontsize * 0.58 * scale, fontsize * 1.3 * scale
+    pad = 9 * scale
+    boxes = []
+    for x, y, _, _ in items:
+        px, py = ax.transData.transform((x, y))
+        boxes.append((px - pad, py - pad, px + pad, py + pad))
+    frame = ax.get_window_extent()
+    right, left = "left", "right"  # ha values: a label to the right of the point is left-aligned
+    for x, y, text, colour in items:
+        lines = text.split("\n")
+        w, h = max(len(line) for line in lines) * char_w, len(lines) * line_h
+        row = 14 + h / scale  # a second row of labels below or above the first, in points
+        px, py = ax.transData.transform((x, y))
+        beside = [((10, 0), right, "center"), ((-10, 0), left, "center")]
+        below = [((10, -14), right, "top"), ((-10, -14), left, "top"), ((10, -row), right, "top"), ((-10, -row), left, "top")]
+        above = [((10, 14), right, "bottom"), ((-10, 14), left, "bottom"), ((10, row), right, "bottom"), ((-10, row), left, "bottom")]
+        near_top = py > frame.y0 + 0.8 * (frame.y1 - frame.y0)
+        near_bottom = py < frame.y0 + 0.2 * (frame.y1 - frame.y0)
+        slots = (below + beside + above) if near_top else (above + beside + below) if near_bottom else (beside + below + above)
+        best, least = None, None
+        for slot in slots:
+            (dx, dy), ha, va = slot
+            x0 = px + dx * scale - (w if ha == left else 0)
+            y0 = py + dy * scale - (h if va == "top" else h / 2 if va == "center" else 0)
+            box = (x0, y0, x0 + w, y0 + h)
+            inside = box[0] >= frame.x0 and box[2] <= frame.x1 and box[1] >= frame.y0 and box[3] <= frame.y1
+            overlap = sum(max(0, min(box[2], b[2]) - max(box[0], b[0])) * max(0, min(box[3], b[3]) - max(box[1], b[1])) for b in boxes)
+            if inside and overlap == 0:
+                best = (slot, box)
+                break
+            score = overlap + (0 if inside else w * h)
+            if least is None or score < least[0]:
+                least = (score, slot, box)
+        slot, box = best if best else (least[1], least[2])
+        boxes.append(box)
+        (dx, dy), ha, va = slot
+        ax.annotate(text, (x, y), xytext=(dx, dy), textcoords="offset points", ha=ha, va=va, fontsize=fontsize,
+                    color=colour, linespacing=1.2)
+
+
 def titles(tables: dict) -> dict[str, str]:
     out = {}
     acc = tables["accuracy"].set_index("model_key")
@@ -184,6 +238,26 @@ def titles(tables: dict) -> dict[str, str]:
     else:
         out["speed_cost"] = (f"{MODEL_NAMES[fastest]} answers in {ms:.0f} ms and {MODEL_NAMES[cheapest]} costs "
                              f"${usd:.3f} per 1,000 decisions")
+    front_models = [m for m in _models_in(tables["accuracy"]) if m in cost.index]
+    per_million = {m: float(cost.loc[m, "usd_per_1000_decisions"]) * 1000 for m in front_models}
+    points = {m: (per_million[m], float(acc.loc[m, "accuracy"])) for m in front_models}
+    front = frontier(points)
+    dominated = [m for m in MODEL_ORDER if m in points and m not in front]
+    if acc.loc[front_models, "accuracy"].max() - acc.loc[front_models, "accuracy"].min() < 0.01:
+        tail = f"; {_names(dominated)} cost{'s' if len(dominated) == 1 else ''} more for the same accuracy" if dominated else ""
+        out["frontier"] = (f"The three are level on accuracy, so the frontier is the cheapest alone: {MODEL_NAMES[front[0]]} at "
+                           f"${per_million[front[0]]:.0f} per million decisions{tail}")
+    else:
+        tail = f"; {_names(dominated)} {'is' if len(dominated) == 1 else 'are'} dominated" if dominated else ""
+        if len(front) == 1:
+            out["frontier"] = (f"{MODEL_NAMES[front[0]]} is the whole frontier, the most accurate and the cheapest at "
+                               f"${per_million[front[0]]:.0f} per million decisions{tail}")
+        else:
+            cheapest, best = front[0], front[-1]
+            gain = 100 * (points[best][1] - points[cheapest][1])
+            out["frontier"] = (f"{_names(front)} make the frontier: {MODEL_NAMES[best]} is {gain:.0f} points more accurate at "
+                               f"${per_million[best]:.0f} per million decisions against ${per_million[cheapest]:.0f} for "
+                               f"{MODEL_NAMES[cheapest]}{tail}")
     scores = desk_aa.SCORES
     without = {k: desk_aa.index(v, drop=desk_aa.KNOWLEDGE_AND_REASONING) for k, v in scores.items()}
     gap = without["Jev 1.14"] - without["Gemini Decision 1"]
@@ -342,6 +416,47 @@ def chart_speed_cost(tables, out_dir, title) -> Path:
                    "Cost as billed by OpenRouter.", left=0.12, bottom=0.2)
 
 
+def chart_frontier(tables, out_dir, title) -> Path:
+    acc = tables["accuracy"].set_index("model_key")
+    cost = tables["cost"].set_index("model_key")
+    speed = tables["speed"]
+    pooled = speed[speed.run == "pooled"].set_index("model_key")
+    models = [m for m in _models_in(tables["accuracy"]) if m in cost.index and m in pooled.index]
+    fig, axes = plt.subplots(1, 2, figsize=(FIG_W, 4.6), sharey=True)
+    fig.subplots_adjust(left=0.12, right=0.97, top=0.75, bottom=0.2, wspace=0.35)
+    panels = [
+        (axes[0], {m: (float(cost.loc[m, "usd_per_1000_decisions"]) * 1000, float(acc.loc[m, "accuracy"])) for m in models},
+         "Cost per million decisions, USD", "${:.0f} per million"),
+        (axes[1], {m: (float(pooled.loc[m, "median_ms"]), float(acc.loc[m, "accuracy"])) for m in models},
+         "Median latency per decision, ms", "{:.0f} ms"),
+    ]
+    span = max(float(acc.loc[models, "accuracy"].max()) - float(acc.loc[models, "accuracy"].min()), 0.03)
+    low = max(0.0, float(acc.loc[models, "accuracy"].min()) - 1.6 * span)
+    high = float(acc.loc[models, "accuracy"].max()) + 0.6 * span  # may pass 100% so the top labels have room
+    for ax, points, xlabel, fmt in panels:
+        front = frontier(points)
+        if len(front) > 1:
+            ax.plot([points[m][0] for m in front], [points[m][1] for m in front], color=INK2, linewidth=1.5,
+                    linestyle=(0, (4, 3)), zorder=1)
+        for m in models:
+            ax.plot([points[m][0]], [points[m][1]], marker="o", markersize=13, color=MODEL_COLOURS[m],
+                    markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
+        ax.set_xlim(0, max(p[0] for p in points.values()) * 1.75)
+        ax.set_ylim(low, high)
+        ax.set_yticks([t for t in ax.get_yticks() if low <= t <= min(high, 1.0)])
+        ax.set_xlabel(xlabel)
+        ax.yaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+        ax.grid(axis="y", color=GRID, linewidth=1)
+        _style(ax)
+        _place_labels(ax, [(points[m][0], points[m][1], f"{MODEL_NAMES[m]}\n{fmt.format(points[m][0])}", INK2) for m in models])
+    axes[0].set_ylabel("Accuracy at 0.5")
+    n = int(acc.n.iloc[0])
+    return _finish(fig, out_dir / "frontier.png", title,
+                   f"Accuracy at 0.5 on {n:,} rows against cost per million decisions (as billed; Clef at Cloudflare's price) and "
+                   "median latency. Dashed line: the frontier, the models no other beats on both axes. Artificial Analysis draws "
+                   "the same two charts with its index score on the vertical axis.", left=0.12, bottom=0.22)
+
+
 def chart_aa_reweighting(out_dir, title) -> Path:
     scores = desk_aa.SCORES
     names = [n for n in ("Jev 1.14", "Gemini Decision 1", "Clef", "Drex Max v1.1") if n in scores]
@@ -382,13 +497,15 @@ def render_all(tables: dict, out_dir: Path | str, desk: bool = True) -> dict[str
         "fooling": chart_fooling(tables, out_dir, heads["fooling"]),
         "rewording": chart_rewording(tables, out_dir, heads["rewording"]),
         "speed_cost": chart_speed_cost(tables, out_dir, heads["speed_cost"]),
+        "frontier": chart_frontier(tables, out_dir, heads["frontier"]),
     }
     if desk:
         written["aa_reweighting"] = chart_aa_reweighting(out_dir, heads["aa_reweighting"])
     manifest = {name: {"file": path.name, "title": heads[name],
                        "data": "results/desk/aa_reweighting_and_noise.md" if name == "aa_reweighting" else
                        {"errors_at_half": "accuracy.csv", "operating_points": "operating_points.csv", "fooling": "fooling.csv",
-                        "rewording": "rewording.csv", "speed_cost": "speed.csv and cost.csv"}[name]}
+                        "rewording": "rewording.csv", "speed_cost": "speed.csv and cost.csv",
+                        "frontier": "accuracy.csv, speed.csv and cost.csv"}[name]}
                 for name, path in written.items()}
     (out_dir / "charts.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8", newline="\n")
     return {name: str(path) for name, path in written.items()}

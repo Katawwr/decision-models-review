@@ -66,12 +66,13 @@ def _when2call_planned(items: list[dict], named: bool, route: str, wording: str)
     return planned
 
 
-def build_tasks(name: str, entries: list[dict] | None = None, rows: dict | None = None) -> list:
+def build_tasks(name: str, entries: list[dict] | None = None, rows: dict | None = None, all_rows: bool = False) -> list:
+    """all_rows=True runs an A run on every manifest row whatever its own row count (A4 on an added tier)."""
     if name in MAIN_RUNS:
         spec = MAIN_RUNS[name]
         entries = build_manifest() if entries is None else entries
         rows = load_rows() if rows is None else rows
-        selected = select_rows(entries, spec["rows"])
+        selected = select_rows(entries, "all" if all_rows else spec["rows"])
         route = spec["route"]
         models = {"gemini-direct": GEMINI_DIRECT_MODEL} if route == "gemini" else dict(MODELS)
         tasks = []
@@ -160,15 +161,17 @@ def main(argv=None) -> int:
     parser.add_argument("--pace", type=float, default=None, help="seconds to wait between calls")
     parser.add_argument("--tier-dir", type=Path, default=None,
                         help="an added tier: a folder holding rows.v1.jsonl and manifest.jsonl; runs go to runs/<folder name>/")
+    parser.add_argument("--all-rows", action="store_true",
+                        help="run on every manifest row whatever the run's own row count, for A4 on an added tier")
     args = parser.parse_args(argv)
 
     if args.tier_dir:
         from manifest import load_manifest, load_rows_file
         tier_rows = load_rows_file(args.tier_dir / "rows.v1.jsonl", source=args.tier_dir.name)
-        tasks = build_tasks(args.run, load_manifest(args.tier_dir / "manifest.jsonl"), tier_rows)
+        tasks = build_tasks(args.run, load_manifest(args.tier_dir / "manifest.jsonl"), tier_rows, all_rows=args.all_rows)
         default_out = RUNS / args.tier_dir.name / ("dryrun" if args.dry_run else "raw") / f"{args.run}.jsonl"
     else:
-        tasks = build_tasks(args.run)
+        tasks = build_tasks(args.run, all_rows=args.all_rows)
         default_out = RUNS / ("dryrun" if args.dry_run else "raw") / f"{args.run}.jsonl"
     if args.limit:
         tasks = tasks[: args.limit]

@@ -46,7 +46,7 @@ def tables():
 
 def test_every_planned_chart_is_written_at_double_resolution(tmp_path):
     written = charts.render_all(tables(), tmp_path)
-    assert set(written) >= {"errors_at_half", "operating_points", "fooling", "rewording", "speed_cost"}
+    assert set(written) >= {"errors_at_half", "operating_points", "fooling", "rewording", "speed_cost", "frontier"}
     for name, path in written.items():
         assert Path(path).exists() and Path(path).stat().st_size > 10_000, name
         assert Path(path).suffix == ".png"
@@ -139,7 +139,7 @@ def test_tier_charts_render_without_the_desk_chart(tmp_path):
     assert "aa_reweighting" not in written
     assert not (tmp_path / "aa_reweighting.png").exists()
     manifest = json.loads((tmp_path / "charts.json").read_text(encoding="utf-8"))
-    assert set(manifest) == set(written) == {"errors_at_half", "operating_points", "fooling", "rewording", "speed_cost"}
+    assert set(manifest) == set(written) == {"errors_at_half", "operating_points", "fooling", "rewording", "speed_cost", "frontier"}
 
 
 def test_fooling_chart_grows_with_the_number_of_groups(tmp_path):
@@ -151,3 +151,17 @@ def test_fooling_chart_grows_with_the_number_of_groups(tmp_path):
             return int.from_bytes(handle.read(24)[20:24], "big")
 
     assert height(tmp_path / "tier" / "fooling.png") > height(tmp_path / "main" / "fooling.png")
+
+
+def test_frontier_title_names_the_frontier_models_and_the_dominated_one():
+    title = charts.titles(tier_tables())["frontier"]
+    assert "Jev 1.14" in title and "Gemini Decision 1" in title
+    assert "Clef is dominated" in title
+    assert "per million decisions" in title
+
+
+def test_frontier_is_the_models_no_other_beats_on_both_axes():
+    points = {"gemini": (46.0, 0.922), "jev": (27.0, 0.784), "clef": (113.0, 0.888)}
+    assert charts.frontier(points) == ["jev", "gemini"]
+    assert charts.frontier({"gemini": (46.0, 0.9), "jev": (27.0, 0.9), "clef": (113.0, 0.9)}) == ["jev"]
+    assert charts.frontier({"gemini": (20.0, 0.95), "jev": (27.0, 0.9), "clef": (113.0, 0.9)}) == ["gemini"]

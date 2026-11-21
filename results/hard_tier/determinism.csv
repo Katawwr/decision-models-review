@@ -1,1 +1,4 @@
 model_key,rows,identical_share,max_abs_difference,mean_abs_difference
+clef,116,1.0,0.0,0.0
+gemini,116,1.0,0.0,0.0
+jev,116,0.33620689655172414,0.13999999999999996,0.02146551724137931

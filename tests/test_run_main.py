@@ -165,3 +165,11 @@ def test_b2l_uses_category_names_as_labels_on_200_tasks():
     assert tasks[0].meta["correct_label"] == tasks[0].meta["correct_answer"]
     b2_ids = {t.row_id for t in rm.build_tasks("B2")}
     assert {t.row_id for t in tasks} <= b2_ids
+
+
+@needs_data
+def test_all_rows_overrides_a_runs_row_count(entries, rows):
+    tasks = rm.build_tasks("A4", entries, rows, all_rows=True)
+    assert len(tasks) == len(entries) * 3 * 3
+    assert {t.row_id for t in tasks} == {e["id"] for e in entries}
+    assert {t.repeat for t in tasks} == {0, 1, 2}

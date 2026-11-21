@@ -1,0 +1,13 @@
+model_key,repeat,n,misses,false_blocks,split_decisions
+clef,0,116,12,1,
+clef,1,116,12,1,
+clef,2,116,12,1,
+clef,majority,116,12,1,0.0
+gemini,0,116,8,1,
+gemini,1,116,8,1,
+gemini,2,116,8,1,
+gemini,majority,116,8,1,0.0
+jev,0,116,25,0,
+jev,1,116,26,0,
+jev,2,116,25,0,
+jev,majority,116,26,0,2.0

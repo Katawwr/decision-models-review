@@ -326,3 +326,19 @@ def test_presentation_table_pairs_labelled_and_named_runs_per_task():
     assert row["accuracy_named"] == pytest.approx(1.0)
     assert row["named_only_correct"] == 1 and row["labels_only_correct"] == 0
     assert row["accuracy_diff_lo"] <= row["accuracy_diff"] <= row["accuracy_diff_hi"]
+
+
+def test_repeat_range_counts_errors_per_repeat_and_by_majority():
+    runs = all_runs()
+    runs["A4"] = (
+        records_for("A4", {"m1": {"r1": 0.9, "r5": 0.6, "r6": 0.2}}, repeat=0)
+        + records_for("A4", {"m1": {"r1": 0.9, "r5": 0.4, "r6": 0.55}}, repeat=1)
+        + records_for("A4", {"m1": {"r1": 0.3, "r5": 0.6, "r6": 0.2}}, repeat=2)
+    )
+    table = an.main_set_tables(runs, MANIFEST)["repeat_range"]
+    m1 = table[table.model_key == "m1"].set_index("repeat")
+    assert list(m1.loc[["0", "1", "2"], "misses"]) == [1, 1, 1]
+    assert list(m1.loc[["0", "1", "2"], "false_blocks"]) == [0, 0, 1]
+    assert int(m1.loc["majority", "misses"]) == 1 and int(m1.loc["majority", "false_blocks"]) == 0
+    assert int(m1.loc["majority", "split_decisions"]) == 3
+    assert list(m1.n) == [3, 3, 3, 3]

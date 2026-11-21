@@ -23,5 +23,10 @@
   "file": "speed_cost.png",
   "title": "Jev 1.14 is both the fastest, 176 ms a decision, and the cheapest, $0.027 per 1,000 decisions",
   "data": "speed.csv and cost.csv"
+ },
+ "frontier": {
+  "file": "frontier.png",
+  "title": "Jev 1.14 and Gemini Decision 1 make the frontier: Gemini Decision 1 is 14 points more accurate at $46 per million decisions against $27 for Jev 1.14; Clef is dominated",
+  "data": "accuracy.csv, speed.csv and cost.csv"
  }
 }

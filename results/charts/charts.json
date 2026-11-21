@@ -24,6 +24,11 @@
   "title": "Jev 1.14 is both the fastest, 199 ms a decision, and the cheapest, $0.023 per 1,000 decisions",
   "data": "speed.csv and cost.csv"
  },
+ "frontier": {
+  "file": "frontier.png",
+  "title": "The three are level on accuracy, so the frontier is the cheapest alone: Jev 1.14 at $23 per million decisions; Gemini Decision 1 and Clef cost more for the same accuracy",
+  "data": "accuracy.csv, speed.csv and cost.csv"
+ },
  "aa_reweighting": {
   "file": "aa_reweighting.png",
   "title": "Drop AA's knowledge and reasoning exams and its Jev vs Gemini tie becomes a 2.6-point Jev lead, at the edge of a \u00b12.5-point noise band",

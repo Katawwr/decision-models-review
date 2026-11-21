@@ -137,6 +137,26 @@
 
 | model_key | rows | identical_share | max_abs_difference | mean_abs_difference |
 |---|---|---|---|---|
+| clef | 116 | 1 | 0 | 0 |
+| gemini | 116 | 1 | 0 | 0 |
+| jev | 116 | 0.3362 | 0.14 | 0.02147 |
+
+## repeat_range
+
+| model_key | repeat | n | misses | false_blocks | split_decisions |
+|---|---|---|---|---|---|
+| clef | 0 | 116 | 12 | 1 |  |
+| clef | 1 | 116 | 12 | 1 |  |
+| clef | 2 | 116 | 12 | 1 |  |
+| clef | majority | 116 | 12 | 1 | 0 |
+| gemini | 0 | 116 | 8 | 1 |  |
+| gemini | 1 | 116 | 8 | 1 |  |
+| gemini | 2 | 116 | 8 | 1 |  |
+| gemini | majority | 116 | 8 | 1 | 0 |
+| jev | 0 | 116 | 25 | 0 |  |
+| jev | 1 | 116 | 26 | 0 |  |
+| jev | 2 | 116 | 25 | 0 |  |
+| jev | majority | 116 | 26 | 0 | 2 |
 
 ## speed
 
@@ -266,3 +286,6 @@
 | A3-paraphrase | clef | 116 | 116 | 0 | 0 | 0 |
 | A3-paraphrase | gemini | 116 | 116 | 0 | 0 | 0 |
 | A3-paraphrase | jev | 116 | 116 | 0 | 0 | 0 |
+| A4 | clef | 348 | 348 | 0 | 0 | 0 |
+| A4 | gemini | 348 | 348 | 0 | 0 | 0 |
+| A4 | jev | 348 | 348 | 0 | 0 | 0 |

@@ -24,3 +24,4 @@ Makers' prices read on 19 November 2026 from: https://ai.google.dev/gemini-api/d
 - Runs: hard tier A1, A2, A3 into `runs/hard_tier/raw/` (18:49 to 18:56 UTC); C2 and B2L into `runs/raw/` (18:55 to 19:08 UTC). Same client, OpenRouter route, Clef pin and key handling as the first day. C2 sends the identical choice request to Google's own API and to OpenRouter, interleaved, paced at one call per 2.6 s because the direct calls use the free tier.
 - Model versions returned: the same strings as on 19 November for the OpenRouter models. The direct Gemini calls return no model string.
 - Prices: unchanged from the table above, checked by the per-call `usage.cost` of the new runs.
+- 21 November 2026, 11:14 to 11:19 UTC: A4 on the hard tier, all 116 rows, three repeats per model (`--all-rows`), 1,044 calls, none failed, $0.070, into `runs/hard_tier/raw/A4.jsonl`. Same client, route, pin and key handling. Model strings returned unchanged from 19 and 20 November.
