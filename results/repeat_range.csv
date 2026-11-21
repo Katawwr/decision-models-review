@@ -1,0 +1,13 @@
+model_key,repeat,n,misses,false_blocks,split_decisions
+clef,0,100,1,0,
+clef,1,100,1,0,
+clef,2,100,1,0,
+clef,majority,100,1,0,0.0
+gemini,0,100,1,0,
+gemini,1,100,1,0,
+gemini,2,100,1,0,
+gemini,majority,100,1,0,0.0
+jev,0,100,2,0,
+jev,1,100,1,0,
+jev,2,100,1,0,
+jev,majority,100,1,0,1.0

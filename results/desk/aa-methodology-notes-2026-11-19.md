@@ -36,6 +36,20 @@ At least 45% of the weight (AA-Paperclip and AA-Omniscience-Decision) rests on p
 - **Symmetry Score.** Per question, 0 if the most probable option changes between forms, otherwise 1 minus the range across forms of the probability's margin above chance, rescaled so that questions with different numbers of options score alike; averaged from 0 to 100.
 - **Calibration.** Each evaluation's Brier score is the mean of (p − c)² over its questions; the index Brier score averages them with the index weights.
 
+## AA's cost and time per task, from the archived index page
+
+The index page embeds each model's index score, average cost per task and average time per task; the two archived copies (17 and 21 November 2026, linked above) hold the same values. AA's cost per task is its average at current token prices and its time per task is its own measurement; the page does not say where its client ran or by what route.
+
+| Model | Index score | Cost per million tasks, USD | Time per task, ms |
+|---|---|---|---|
+| Jev 1.14 | 66.2 | 156 | 92 |
+| Gemini Decision 1 | 66.0 | 345 | 211 |
+| Clef | 60.3 | 863 | 354 |
+| Drex Max v1.1 | 72.6 | 103 | 283 |
+| d1.2-ultra | 74.8 | 133 | 218 |
+
+Read against this study's own frontier charts: AA's tasks are far longer than our rows (Gemini's $345 per million tasks at $0.10 per million input tokens implies about 3,500 input tokens per task, against 371 on our main set and 463 on the hard tier), so AA's cost per task is about seven times ours for the same model; AA shows Clef at 1.7 times Gemini's time per task, while from our UK client through OpenRouter the two have the same median and Clef differs only in its tail. Neither chart is wrong; they measure different inputs from different places.
+
 ## The index page as read on 19 November 2026
 
 - `aa-index-scores-2026-11-19.json` holds the integer bar labels of the index chart as read from the page, 18 of 25 models shown: Jev 1.14 and Gemini Decision 1 at 66, Clef at 60, d1.2-ultra at 75 at the top.

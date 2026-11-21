@@ -126,3 +126,33 @@ def test_latency_summary_gives_median_and_p95():
     assert out["n"] == 100
     assert out["median_ms"] == 50.5
     assert out["p95_ms"] == pytest.approx(95.05)
+
+
+def test_exact_interval_on_the_discordant_split_reaches_zero_when_all_rows_fall_one_way():
+    lo, hi = ms.exact_diff_interval(5, 0, 10)
+    assert lo < 0 < hi
+    assert hi == 0.5
+    lo, hi = ms.exact_diff_interval(17, 1, 116)
+    assert lo > 0
+    assert ms.exact_diff_interval(0, 0, 10) == (0.0, 0.0)
+
+
+def test_diff_interval_uses_the_exact_split_when_discordant_rows_are_few():
+    few_a = [True] * 10
+    few_b = [False] * 5 + [True] * 5
+    lo, hi, method = ms.diff_interval(few_a, few_b)
+    assert method == "exact" and lo < 0 < hi
+    many_a = [True] * 116
+    many_b = [False] * 17 + [True] * 99
+    many_a[115] = False
+    lo, hi, method = ms.diff_interval(many_a, many_b)
+    assert method == "bootstrap" and lo > 0
+
+
+def test_auc_is_one_for_perfect_separation_and_half_for_no_separation():
+    probs = [0.9, 0.8, 0.2, 0.1]
+    labels = [ms.LEGIT, ms.LEGIT, ms.HIJACK, ms.HIJACK]
+    assert ms.auc(probs, labels) == 1.0
+    assert ms.auc([0.5, 0.5, 0.5, 0.5], labels) == 0.5
+    assert ms.auc([0.1, 0.2, 0.8, 0.9], labels) == 0.0
+    assert ms.auc([0.9, None, 0.2, 0.1], labels) == 1.0

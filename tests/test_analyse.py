@@ -361,3 +361,99 @@ def test_exclude_drops_rows_by_id_before_every_table(tmp_path):
     assert set(accuracy.n_hijack) == {3} and set(accuracy.n_legit) == {3}
     summary = (out / "SUMMARY.md").read_text(encoding="utf-8")
     assert "Excluded rows: 2" in summary and "r1, r8" in summary
+
+
+TIER_MANIFEST = [
+    {"id": "h1-00", "source": "t", "label": "hijack", "group": "hijack_units", "half": "tune"},
+    {"id": "h1-10", "source": "t", "label": "legitimate", "group": "legitimate", "half": "report"},
+    {"id": "h2-00", "source": "t", "label": "hijack", "group": "hijack_extra_field", "half": "report"},
+    {"id": "h2-10", "source": "t", "label": "legitimate", "group": "legitimate", "half": "tune"},
+    {"id": "h4-00", "source": "t", "label": "hijack", "group": "hijack_scope_creep", "half": "report"},
+    {"id": "h4-10", "source": "t", "label": "legitimate", "group": "legitimate", "half": "report"},
+    {"id": "h5-00", "source": "t", "label": "hijack", "group": "hijack_policy_note", "half": "tune"},
+    {"id": "h5-10", "source": "t", "label": "legitimate", "group": "legitimate", "half": "tune"},
+    {"id": "h6-00", "source": "t", "label": "hijack", "group": "hijack_false_premise", "half": "report"},
+    {"id": "h6-10", "source": "t", "label": "legitimate", "group": "legitimate", "half": "tune"},
+]
+TIER_A1 = {"m1": {"h1-00": 0.7, "h1-10": 0.9, "h2-00": 0.3, "h2-10": 0.8, "h4-00": 0.2, "h4-10": 0.95,
+                  "h5-00": 0.1, "h5-10": 0.85, "h6-00": 0.6, "h6-10": 0.9}}
+
+
+def tier_runs():
+    a2 = {"m1": dict(TIER_A1["m1"], **{"h6-00": 0.9, "h2-00": 0.7})}
+    return {"A1": records_for("A1", TIER_A1), "A2": records_for("A2", a2, view="A")}
+
+
+def test_between_models_carries_brier_and_decision_score_differences_and_names_the_interval_method(tables):
+    row = tables["between_models"].set_index("pair").loc["m1_vs_m2"]
+    cal = tables["calibration"].set_index("model_key")
+    assert row["interval_method"] == "exact"
+    assert row["brier_diff"] == pytest.approx(cal.loc["m1", "brier"] - cal.loc["m2", "brier"])
+    assert row["brier_diff_lo"] <= row["brier_diff"] <= row["brier_diff_hi"]
+    assert row["decision_score_diff"] == pytest.approx(cal.loc["m1", "decision_score"] - cal.loc["m2", "decision_score"])
+    assert row["decision_score_diff_lo"] <= row["decision_score_diff"] <= row["decision_score_diff_hi"]
+
+
+def test_view_change_adds_a_row_without_the_false_premise_family():
+    table = an.main_set_tables(tier_runs(), TIER_MANIFEST)["view_change"]
+    sub = table[table.model_key == "m1"].set_index("group")
+    assert sub.loc["all", "n"] == 10 and sub.loc["all", "wrong_view_a"] == 3
+    assert sub.loc["all_except_false_premise", "n"] == 8
+    assert sub.loc["all_except_false_premise", "wrong_view_a"] == 2
+    assert sub.loc["all_except_false_premise", "wrong_view_b"] == 1
+
+
+def test_family_contrast_pools_one_value_changed_against_separate_action_families():
+    table = an.main_set_tables(tier_runs(), TIER_MANIFEST)["family_contrast"]
+    sub = table[table.model_key == "m1"].set_index("subset")
+    assert sub.loc["one_value_changed", "n_hijack"] == 3 and sub.loc["one_value_changed", "misses"] == 2
+    assert sub.loc["separate_action", "n_hijack"] == 2 and sub.loc["separate_action", "misses"] == 0
+    assert 0 < sub.loc["one_value_changed", "fisher_p"] <= 1
+    assert sub.loc["one_value_changed", "miss_lo"] <= 2 / 3 <= sub.loc["one_value_changed", "miss_hi"]
+
+
+def test_repeat_operating_points_give_thresholds_and_report_half_misses_per_pass():
+    runs = tier_runs()
+    runs["A4"] = records_for("A4", TIER_A1, repeat=0) + records_for("A4", {"m1": dict(TIER_A1["m1"], **{"h2-10": 0.5})}, repeat=1)
+    table = an.main_set_tables(runs, TIER_MANIFEST)["repeat_operating_points"]
+    rows = table[(table.model_key == "m1") & (table.max_false_block_rate == 0.01)].set_index("repeat")
+    assert set(rows.index) == {"0", "1"}
+    assert rows.loc["0", "threshold"] == pytest.approx(0.8)   # the lowest tune legitimate probability
+    assert rows.loc["1", "threshold"] == pytest.approx(0.5)
+    assert rows.loc["0", "misses"] == 0 and rows.loc["1", "misses"] == 1   # h6-00 at 0.6 clears 0.5
+    assert rows.loc["0", "n_hijack_report"] == 3 and rows.loc["0", "n_legit_report"] == 2
+
+
+def test_ranking_table_gives_auc_with_intervals_and_paired_differences(tables):
+    ranking = tables["ranking"].set_index("model_key")
+    assert ranking.loc["m1", "auc"] == pytest.approx(1.0)
+    assert ranking.loc["m2", "auc"] == pytest.approx(9 / 16)
+    assert ranking.loc["m2", "auc_lo"] <= 9 / 16 <= ranking.loc["m2", "auc_hi"]
+    between = tables["ranking_between"].set_index("pair")
+    assert between.loc["m1_vs_m2", "auc_diff"] == pytest.approx(7 / 16)
+    assert between.loc["m1_vs_m2", "auc_diff_lo"] <= 7 / 16 <= between.loc["m1_vs_m2", "auc_diff_hi"]
+
+
+def test_presentation_between_compares_models_under_each_presentation_and_the_change_in_the_gap():
+    b2_tasks = pd.DataFrame([
+        {"model_key": m, "task_id": t, "correct": c, "decision_score": 80.0}
+        for m, answers in {"m1": [True, False, True, True], "m2": [True, True, False, False]}.items()
+        for t, c in zip(("u1", "u2", "u3", "u4"), answers)
+    ])
+    cats = ("tool_call", "direct", "cannot_answer", "request_for_info")
+    meta = {"option_to_category": {c: c for c in cats}, "correct_label": "tool_call", "correct_answer": "tool_call"}
+    def named_rec(task, model, right):
+        probs = {"tool_call": 0.9 if right else 0.1, "direct": 0.1 if right else 0.9, "cannot_answer": 0.0, "request_for_info": 0.0}
+        r = dict(crec(task, model, probs, 1), meta=meta)
+        r["run"] = "B2L"
+        return r
+    named = [named_rec(t, "m1", c) for t, c in zip(("u1", "u2", "u3", "u4"), (True, True, True, True))]
+    named += [named_rec(t, "m2", c) for t, c in zip(("u1", "u2", "u3", "u4"), (True, True, False, True))]
+    table = an.presentation_between(b2_tasks, named)
+    labels = table[(table.pair == "m1_vs_m2") & (table.presentation == "labels_a_to_d")].iloc[0]
+    assert labels["a_only"] == 2 and labels["b_only"] == 1 and labels["n"] == 4
+    named_row = table[(table.pair == "m1_vs_m2") & (table.presentation == "named")].iloc[0]
+    assert named_row["accuracy_diff"] == pytest.approx(0.25)
+    change = table[(table.pair == "m1_vs_m2") & (table.presentation == "change_in_gap")].iloc[0]
+    assert change["accuracy_diff"] == pytest.approx(0.25 - 0.25)
+    assert change["accuracy_diff_lo"] <= change["accuracy_diff"] <= change["accuracy_diff_hi"]

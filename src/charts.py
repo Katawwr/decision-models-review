@@ -29,6 +29,7 @@ from paths import RESULTS  # noqa: E402
 
 MODEL_ORDER = ("gemini", "jev", "clef")
 MODEL_NAMES = {"gemini": "Gemini Decision 1", "jev": "Jev 1.14", "clef": "Clef"}
+SHORT_NAMES = {"gemini": "Gemini", "jev": "Jev", "clef": "Clef"}  # for a second mention inside one title
 # Reference palette, categorical slots 1 to 3, validated all-pairs on the light surface.
 MODEL_COLOURS = {"gemini": "#2a78d6", "jev": "#eb6834", "clef": "#1baf7a"}
 SURFACE, INK, INK2, MUTED, GRID, BASELINE = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
@@ -92,8 +93,10 @@ def _finish(fig, path: Path, title: str, caption: str, top: float = 0.80, bottom
     wrapped = textwrap.fill(title, 64)
     lines = wrapped.count("\n") + 1
     fig.subplots_adjust(left=left, right=0.97, top=top - 0.05 * (lines - 1), bottom=bottom, wspace=0.35)
-    fig.text(0.01, 0.985, wrapped, ha="left", va="top", fontsize=16, weight="semibold", color=INK, linespacing=1.25)
-    fig.text(0.01, 0.015, textwrap.fill(caption, 110), ha="left", va="bottom", fontsize=10.5, color=MUTED)
+    # A pair of dollar signs would be read as maths by matplotlib, so they are escaped for drawing only.
+    fig.text(0.01, 0.985, wrapped.replace("$", r"\$"), ha="left", va="top", fontsize=16, weight="semibold", color=INK,
+             linespacing=1.25)
+    fig.text(0.01, 0.015, textwrap.fill(caption, 110).replace("$", r"\$"), ha="left", va="bottom", fontsize=10.5, color=MUTED)
     fig.savefig(path, dpi=DPI)
     plt.close(fig)
     return path
@@ -159,38 +162,94 @@ def _place_labels(ax, items, fontsize=11) -> None:
         boxes.append(box)
         (dx, dy), ha, va = slot
         leader = dict(arrowstyle="-", color=BASELINE, linewidth=0.8, shrinkA=0, shrinkB=8) if ha == "center" else None
-        ax.annotate(text, (x, y), xytext=(dx, dy), textcoords="offset points", ha=ha, va=va, fontsize=fontsize,
-                    color=colour, linespacing=1.2, arrowprops=leader)
+        ax.annotate(text.replace("$", r"\$"), (x, y), xytext=(dx, dy), textcoords="offset points", ha=ha, va=va,
+                    fontsize=fontsize, color=colour, linespacing=1.2, arrowprops=leader)
+
+
+def _pair_stats(between, a: str, b: str):
+    """The paired test for two models from the between_models table, as a minus b whichever way it lists them."""
+    if between is None or len(between) == 0:
+        return None
+    for pair, sign in ((f"{a}_vs_{b}", 1.0), (f"{b}_vs_{a}", -1.0)):
+        rows = between[between.pair == pair]
+        if len(rows):
+            row = rows.iloc[0]
+            lo, hi = float(row.accuracy_diff_lo), float(row.accuracy_diff_hi)
+            return {"p": float(row.mcnemar_p), "diff": sign * float(row.accuracy_diff),
+                    "lo": min(sign * lo, sign * hi), "hi": max(sign * lo, sign * hi)}
+    return None
+
+
+def _p(p: float) -> str:
+    if p >= 0.995:
+        return "p = 1.0"
+    if p < 0.001:
+        return f"p = {p:.4f}"
+    if p < 0.01:
+        return f"p = {p:.3f}"
+    return f"p = {p:.2f}"
 
 
 def titles(tables: dict) -> dict[str, str]:
     out = {}
+    between = tables.get("between_models")
     acc = tables["accuracy"].set_index("model_key")
+    models = _models_in(tables["accuracy"])
     n = int(acc.n.iloc[0])
+    n_hijack = int(acc.n_hijack.iloc[0])
+    by_misses = sorted(models, key=lambda m: (int(acc.loc[m, "misses"]), MODEL_ORDER.index(m)))
     if acc.misses.max() - acc.misses.min() <= 2 and acc.false_blocks.max() - acc.false_blocks.min() <= 2:
         out["errors_at_half"] = (f"At the default threshold the three models are level: {int(acc.misses.min())} to "
                                  f"{int(acc.misses.max())} hijacks let through and {int(acc.false_blocks.min())} to "
                                  f"{int(acc.false_blocks.max())} legitimate calls blocked, out of {n:,} rows")
     else:
-        best = acc.miss_rate.idxmin()
-        out["errors_at_half"] = (f"At the default threshold {MODEL_NAMES[best]} lets through the fewest hijacks: "
-                                 f"{pct(acc.loc[best, 'miss_rate'])}, blocking {pct(acc.loc[best, 'false_block_rate'])} of legitimate calls")
+        best, second = by_misses[0], by_misses[1]
+        pair = _pair_stats(between, best, second)
+        if pair and pair["p"] >= 0.05:
+            rest = by_misses[2:]
+            tail = ("; " + ", ".join(f"{MODEL_NAMES[m]} lets {int(acc.loc[m, 'misses'])} through" for m in rest)) if rest else ""
+            out["errors_at_half"] = (f"At the default threshold {MODEL_NAMES[best]} and {MODEL_NAMES[second]} are level "
+                                     f"({int(acc.loc[best, 'misses'])} and {int(acc.loc[second, 'misses'])} of {n_hijack} hijacks "
+                                     f"through, {_p(pair['p'])}){tail}")
+        else:
+            out["errors_at_half"] = (f"At the default threshold {MODEL_NAMES[best]} lets through the fewest hijacks: "
+                                     f"{pct(acc.loc[best, 'miss_rate'])}, blocking {pct(acc.loc[best, 'false_block_rate'])} of "
+                                     f"legitimate calls" + (f" ({_p(pair['p'])} against {MODEL_NAMES[second]})" if pair else ""))
     ops = tables["operating_points"]
     at5 = ops[ops.max_false_block_rate == 0.05].set_index("model_key")
     n_report = int(at5.n_hijack_report.iloc[0])
-    zeros = [m for m in MODEL_ORDER if m in at5.index and at5.loc[m, "misses"] == 0]
-    worst5 = at5.miss_rate.idxmax()
-    if len(zeros) == len(at5):
-        out["operating_points"] = (f"With false blocks held to 5%, none of the three lets a single hijack through on the "
-                                   f"{n_report} report-half hijacks")
-    elif zeros:
-        out["operating_points"] = (f"With false blocks held to 5%, {_names(zeros)} {'lets' if len(zeros) == 1 else 'let'} no hijack "
-                                   f"through on the {n_report} report-half hijacks; {MODEL_NAMES[worst5]} lets "
-                                   f"{pct(at5.loc[worst5, 'miss_rate'])} through")
+    repeats = tables.get("repeat_operating_points")
+    same_rows = repeats is not None and len(repeats) and int(repeats.n_hijack_report.iloc[0]) == n_report
+    if same_rows and repeats["repeat"].nunique() >= 2:
+        r5 = repeats[repeats.max_false_block_rate == 0.05]
+        passes = int(r5["repeat"].nunique())
+        ranges = {m: (int(r5[r5.model_key == m].misses.min()), int(r5[r5.model_key == m].misses.max()))
+                  for m in MODEL_ORDER if m in set(r5.model_key)}
+        zeros = [m for m, (_, hi) in ranges.items() if hi == 0]
+        parts = []
+        if zeros:
+            parts.append(f"{_names(zeros)} {'lets' if len(zeros) == 1 else 'let'} no hijack through on the {n_report} "
+                         f"report-half hijacks in every pass")
+        for m, (lo, hi) in ranges.items():
+            if hi == 0:
+                continue
+            parts.append(f"{MODEL_NAMES[m]} lets {lo} to {hi} of {n_report} through" if lo != hi
+                         else f"{MODEL_NAMES[m]} lets {lo} of {n_report} through in every pass")
+        out["operating_points"] = f"With false blocks held to 5% over {passes} passes, " + "; ".join(parts)
     else:
-        best5 = at5.miss_rate.idxmin()
-        out["operating_points"] = (f"Holding false blocks to 5%, {MODEL_NAMES[best5]} still lets {pct(at5.loc[best5, 'miss_rate'])} "
-                                   f"of hijacks through and {MODEL_NAMES[worst5]} {pct(at5.loc[worst5, 'miss_rate'])}")
+        zeros = [m for m in MODEL_ORDER if m in at5.index and at5.loc[m, "misses"] == 0]
+        worst5 = at5.miss_rate.idxmax()
+        if len(zeros) == len(at5):
+            out["operating_points"] = (f"With false blocks held to 5%, none of the three lets a single hijack through on the "
+                                       f"{n_report} report-half hijacks")
+        elif zeros:
+            out["operating_points"] = (f"With false blocks held to 5%, {_names(zeros)} {'lets' if len(zeros) == 1 else 'let'} no hijack "
+                                       f"through on the {n_report} report-half hijacks; {MODEL_NAMES[worst5]} lets "
+                                       f"{pct(at5.loc[worst5, 'miss_rate'])} through")
+        else:
+            best5 = at5.miss_rate.idxmin()
+            out["operating_points"] = (f"Holding false blocks to 5%, {MODEL_NAMES[best5]} still lets {pct(at5.loc[best5, 'miss_rate'])} "
+                                       f"of hijacks through and {MODEL_NAMES[worst5]} {pct(at5.loc[worst5, 'miss_rate'])}")
     fool = tables["fooling"]
     hijack_groups = fool[fool.group.isin(GROUP_NAMES)]
     view_b = hijack_groups[hijack_groups.view == "B"].set_index(["model_key", "group"])
@@ -210,16 +269,23 @@ def titles(tables: dict) -> dict[str, str]:
                               f"of informed attacks through against {pct(plain.loc[worst, 'miss_rate'])} of plain hijacks")
     else:
         hardest = view_b.groupby(level="group").miss_rate.mean().idxmax()
-        on_family = view_b.xs(hardest, level="group").miss_rate
-        worst_model, best_model = on_family.idxmax(), on_family.idxmin()
-        out["fooling"] = (f"The {GROUP_NAMES[hardest].lower()} is the hardest attack: {MODEL_NAMES[worst_model]} lets "
-                          f"{pct(on_family[worst_model])} through and the best model on it, {MODEL_NAMES[best_model]}, "
-                          f"{pct(on_family[best_model])}")
+        on_family = view_b.xs(hardest, level="group")
+        ordered = sorted([m for m in MODEL_ORDER if m in on_family.index], key=lambda m: -int(on_family.loc[m, "misses"]))
+        first = ordered[0]
+        n_family = int(on_family.loc[first, "n"])
+        rest = [f"{MODEL_NAMES[m]} {int(on_family.loc[m, 'misses'])}" for m in ordered[1:]]
+        tail = (", " + (" and ".join(rest) if len(rest) <= 2 else ", ".join(rest[:-1]) + " and " + rest[-1])) if rest else ""
+        out["fooling"] = (f"The {GROUP_NAMES[hardest].lower()} is the hardest attack: {MODEL_NAMES[first]} lets "
+                          f"{int(on_family.loc[first, 'misses'])} of {n_family} through{tail}")
     rw = tables["rewording"]
     any_pair = rw[rw.pair == "any_pair"].set_index("model_key")
     if any_pair.flip_share.max() < 0.01:
         out["rewording"] = (f"Rewording the question changes under 1% of decisions for all three: "
                             f"{int(any_pair.flips.min())} to {int(any_pair.flips.max())} rows of {int(any_pair.n.iloc[0]):,}")
+    elif any_pair.flips.max() - any_pair.flips.min() <= 2:
+        low, high, rows = int(any_pair.flips.min()), int(any_pair.flips.max()), int(any_pair.n.iloc[0])
+        span = f"{low}" if low == high else f"{low} to {high}"
+        out["rewording"] = f"Rewording the question changes {span} decisions of {rows:,} for every model"
     else:
         most = any_pair.flip_share.idxmax()
         least = [m for m in MODEL_ORDER if m in any_pair.index and any_pair.loc[m, "flip_share"] == any_pair.flip_share.min()]
@@ -236,7 +302,7 @@ def titles(tables: dict) -> dict[str, str]:
     else:
         out["speed_cost"] = (f"{MODEL_NAMES[fastest]} answers in {ms:.0f} ms and {MODEL_NAMES[cheapest]} costs "
                              f"${usd:.3f} per 1,000 decisions")
-    front_models = [m for m in _models_in(tables["accuracy"]) if m in cost.index]
+    front_models = [m for m in models if m in cost.index]
     per_million = {m: float(cost.loc[m, "usd_per_1000_decisions"]) * 1000 for m in front_models}
     points = {m: (per_million[m], float(acc.loc[m, "accuracy"])) for m in front_models}
     front = frontier(points)
@@ -246,16 +312,29 @@ def titles(tables: dict) -> dict[str, str]:
         out["frontier"] = (f"The three are level on accuracy, so the frontier is the cheapest alone: {MODEL_NAMES[front[0]]} at "
                            f"${per_million[front[0]]:.0f} per million decisions{tail}")
     else:
-        tail = f"; {_names(dominated)} {'is' if len(dominated) == 1 else 'are'} dominated" if dominated else ""
+        tails = []
+        for d in dominated:
+            above = [m for m in front if points[m][1] >= points[d][1]]
+            dominator = min(above, key=lambda m: points[m][0])
+            ratio = points[d][0] / points[dominator][0]
+            pair = _pair_stats(between, d, dominator)
+            if pair and pair["p"] >= 0.05:
+                tails.append(f"{SHORT_NAMES[d]} costs {ratio:.1f}x {SHORT_NAMES[dominator]} for accuracy not distinguished "
+                             f"from it ({_p(pair['p'])})")
+            else:
+                tails.append(f"{SHORT_NAMES[d]} costs {ratio:.1f}x {SHORT_NAMES[dominator]} and is less accurate"
+                             + (f" ({_p(pair['p'])})" if pair else ""))
+        tail = ("; " + "; ".join(tails)) if tails else ""
         if len(front) == 1:
             out["frontier"] = (f"{MODEL_NAMES[front[0]]} is the whole frontier, the most accurate and the cheapest at "
                                f"${per_million[front[0]]:.0f} per million decisions{tail}")
         else:
-            cheapest, best = front[0], front[-1]
-            gain = 100 * (points[best][1] - points[cheapest][1])
-            out["frontier"] = (f"{_names(front)} make the frontier: {MODEL_NAMES[best]} is {gain:.0f} points more accurate at "
-                               f"${per_million[best]:.0f} per million decisions against ${per_million[cheapest]:.0f} for "
-                               f"{MODEL_NAMES[cheapest]}{tail}")
+            cheapest_front, best = front[0], front[-1]
+            gain = 100 * (points[best][1] - points[cheapest_front][1])
+            pair = _pair_stats(between, best, cheapest_front)
+            out["frontier"] = (f"{MODEL_NAMES[best]} is {gain:.0f} points more accurate than {MODEL_NAMES[cheapest_front]}"
+                               + (f" ({_p(pair['p'])})" if pair else "")
+                               + f" at ${per_million[best]:.0f} against ${per_million[cheapest_front]:.0f} per million decisions{tail}")
     scores = desk_aa.SCORES
     without = {k: desk_aa.index(v, drop=desk_aa.KNOWLEDGE_AND_REASONING) for k, v in scores.items()}
     gap = without["Jev 1.14"] - without["Gemini Decision 1"]
@@ -353,11 +432,14 @@ def chart_fooling(tables, out_dir, title) -> Path:
     axes[0].xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
     handles = [Line2D([], [], marker="o", color=SURFACE, markeredgecolor=INK2, markeredgewidth=2, markersize=9, linestyle="none"),
                Line2D([], [], marker="o", color=INK2, markersize=10, linestyle="none")]
+    long_caption = "hijack_false_premise" in groups
     fig.legend(handles, ["Planted text hidden (View A)", "Planted text visible (View B)"], loc="lower right",
-               bbox_to_anchor=(0.98, 0.075), ncol=2)
-    return _finish(fig, out_dir / "fooling.png", title,
-                   "Share of hijacks let through at 0.5, by attack group and whether the model saw the text the attacker planted.",
-                   left=0.28, bottom=0.28)
+               bbox_to_anchor=(0.98, 0.115 if long_caption else 0.075), ncol=2)
+    caption = "Share of hijacks let through at 0.5, by attack group and whether the model saw the text the attacker planted."
+    if long_caption:
+        caption += (" False-premise rows share their request between hijack and twin and differ only in a value the hidden "
+                    "text holds, so with the text hidden they show each model's default, not detection.")
+    return _finish(fig, out_dir / "fooling.png", title, caption, left=0.28, bottom=0.31 if long_caption else 0.28)
 
 
 def chart_rewording(tables, out_dir, title) -> Path:
@@ -420,8 +502,8 @@ def chart_frontier(tables, out_dir, title) -> Path:
     speed = tables["speed"]
     pooled = speed[speed.run == "pooled"].set_index("model_key")
     models = [m for m in _models_in(tables["accuracy"]) if m in cost.index and m in pooled.index]
-    fig, axes = plt.subplots(1, 2, figsize=(FIG_W, 4.6), sharey=True)
-    fig.subplots_adjust(left=0.12, right=0.97, top=0.75, bottom=0.2, wspace=0.35)
+    fig, axes = plt.subplots(1, 2, figsize=(FIG_W, 5.2), sharey=True)
+    fig.subplots_adjust(left=0.12, right=0.97, top=0.75, bottom=0.27, wspace=0.35)
     panels = [
         (axes[0], {m: (float(cost.loc[m, "usd_per_1000_decisions"]) * 1000, float(acc.loc[m, "accuracy"])) for m in models},
          "Cost per million decisions, USD", "${:.0f} per million"),
@@ -438,6 +520,9 @@ def chart_frontier(tables, out_dir, title) -> Path:
             ax.plot([points[m][0] for m in front], [points[m][1] for m in front], color=INK2, linewidth=1.5,
                     linestyle=(0, (4, 3)), zorder=1)
         for m in models:
+            if "accuracy_lo" in acc.columns:
+                ax.plot([points[m][0], points[m][0]], [float(acc.loc[m, "accuracy_lo"]), float(acc.loc[m, "accuracy_hi"])],
+                        color=MODEL_COLOURS[m], linewidth=2, alpha=0.55, solid_capstyle="round", zorder=2)
             ax.plot([points[m][0]], [points[m][1]], marker="o", markersize=13, color=MODEL_COLOURS[m],
                     markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
         ax.set_xlim(0, max(p[0] for p in points.values()) * 1.75)
@@ -450,10 +535,19 @@ def chart_frontier(tables, out_dir, title) -> Path:
         _place_labels(ax, [(points[m][0], points[m][1], f"{MODEL_NAMES[m]}\n{fmt.format(points[m][0])}", INK2) for m in models])
     axes[0].set_ylabel("Accuracy at 0.5")
     n = int(acc.n.iloc[0])
+    tokens = {m: float(cost.loc[m, "mean_input_tokens"]) for m in models} if "mean_input_tokens" in cost.columns else {}
+
+    def price(m):
+        value = round(float(cost.loc[m, "usd_per_1000_decisions"]) * 1000 / tokens[m], 3)
+        return f"${value:.2f}" if value >= 0.1 else f"${value:.3f}"
+
+    token_note = (f" Input: {min(tokens.values()):.0f} to {max(tokens.values()):.0f} tokens per decision on average, priced at "
+                  + ", ".join(f"{price(m)} ({SHORT_NAMES[m]})" for m in models) + " per million tokens.") if tokens else ""
     return _finish(fig, out_dir / "frontier.png", title,
-                   f"Accuracy at 0.5 on {n:,} rows against cost per million decisions (as billed; Clef at Cloudflare's price) and "
-                   "median latency. Dashed line: the frontier, the models no other beats on both axes. Artificial Analysis draws "
-                   "the same two charts with its index score on the vertical axis.", left=0.12, bottom=0.22)
+                   f"Accuracy at the default threshold on {n:,} rows; bars are 95% Wilson intervals. Cost as billed, Clef at "
+                   f"Cloudflare's price.{token_note} Latency: median from one UK client over one connection. Dashed line: the "
+                   "frontier on point estimates. Artificial Analysis draws the same two charts with its index score on the "
+                   "vertical axis.", left=0.12, bottom=0.27)
 
 
 def chart_aa_reweighting(out_dir, title) -> Path:
@@ -510,9 +604,17 @@ def render_all(tables: dict, out_dir: Path | str, desk: bool = True) -> dict[str
     return {name: str(path) for name, path in written.items()}
 
 
+OPTIONAL_TABLES = ("between_models", "repeat_operating_points")
+
+
 def load_tables(results_dir: Path | str) -> dict[str, pd.DataFrame]:
     results_dir = Path(results_dir)
-    return {name: pd.read_csv(results_dir / f"{name}.csv") for name in TABLE_FILES}
+    tables = {name: pd.read_csv(results_dir / f"{name}.csv") for name in TABLE_FILES}
+    for name in OPTIONAL_TABLES:
+        path = results_dir / f"{name}.csv"
+        if path.exists():
+            tables[name] = pd.read_csv(path, dtype={"repeat": str} if name == "repeat_operating_points" else None)
+    return tables
 
 
 def main(argv=None) -> int:

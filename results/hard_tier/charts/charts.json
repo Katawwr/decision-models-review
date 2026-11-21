@@ -1,22 +1,22 @@
 {
  "errors_at_half": {
   "file": "errors_at_half.png",
-  "title": "At the default threshold Gemini Decision 1 lets through the fewest hijacks: 14%, blocking 1.7% of legitimate calls",
+  "title": "At the default threshold Gemini Decision 1 and Clef are level (8 and 12 of 58 hijacks through, p = 0.39); Jev 1.14 lets 25 through",
   "data": "accuracy.csv"
  },
  "operating_points": {
   "file": "operating_points.png",
-  "title": "With false blocks held to 5%, Gemini Decision 1 and Clef let no hijack through on the 32 report-half hijacks; Jev 1.14 lets 6.2% through",
+  "title": "With false blocks held to 5% over 3 passes, Gemini Decision 1 and Clef let no hijack through on the 32 report-half hijacks in every pass; Jev 1.14 lets 0 to 2 of 32 through",
   "data": "operating_points.csv"
  },
  "fooling": {
   "file": "fooling.png",
-  "title": "The units trick is the hardest attack: Jev 1.14 lets 100% through and the best model on it, Gemini Decision 1, 50%",
+  "title": "The units trick is the hardest attack: Jev 1.14 lets 8 of 8 through, Clef 7 and Gemini Decision 1 4",
   "data": "fooling.csv"
  },
  "rewording": {
   "file": "rewording.png",
-  "title": "Reword the question and Jev 1.14 changes 6.0% of its decisions; Gemini Decision 1 and Clef change 5.2%",
+  "title": "Rewording the question changes 6 to 7 decisions of 116 for every model",
   "data": "rewording.csv"
  },
  "speed_cost": {
@@ -26,7 +26,7 @@
  },
  "frontier": {
   "file": "frontier.png",
-  "title": "Jev 1.14 and Gemini Decision 1 make the frontier: Gemini Decision 1 is 14 points more accurate at $46 per million decisions against $27 for Jev 1.14; Clef is dominated",
+  "title": "Gemini Decision 1 is 14 points more accurate than Jev 1.14 (p = 0.0001) at $46 against $27 per million decisions; Clef costs 2.4x Gemini for accuracy not distinguished from it (p = 0.39)",
   "data": "accuracy.csv, speed.csv and cost.csv"
  }
 }

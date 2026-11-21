@@ -125,8 +125,9 @@ def assemble(src: Path | str, verdicts_path: Path | str, out_dir: Path | str) ->
         "by_family": {f"{family} {label}": n for (family, label), n in sorted(by_family.items())},
     }
     lines = ["# Hard tier build report", "",
-             f"Rows written by the generators: {len(rows)}. Kept after the blind check: {len(kept)}. "
-             f"Dropped because the checker disagreed with the label: {len(dropped)}.", "",
+             f"Rows handed to the assembly step: {len(rows)}. Kept after its blind-check verdicts: {len(kept)}. "
+             f"Dropped because the checker disagreed with the label: {len(dropped)}. Counts of candidates written and "
+             f"judged are in the build's selection record, not here.", "",
              f"SHA-256 of rows.v1.jsonl: `{rows_sha}`", f"SHA-256 of manifest.jsonl: `{manifest_sha}`", "",
              "| Family | Label | Kept |", "|---|---|---|"]
     lines += [f"| {family} | {label} | {n} |" for (family, label), n in sorted(by_family.items())]
