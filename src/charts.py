@@ -125,7 +125,7 @@ def frontier(points: dict) -> list[str]:
 def _place_labels(ax, items, fontsize=11) -> None:
     """Annotate points, trying four slots per label and keeping the first clear of the other labels and points."""
     scale = ax.figure.dpi / 72.0
-    char_w, line_h = fontsize * 0.58 * scale, fontsize * 1.3 * scale
+    char_w, line_h = fontsize * 0.45 * scale, fontsize * 1.3 * scale
     pad = 9 * scale
     boxes = []
     for x, y, _, _ in items:
@@ -136,18 +136,15 @@ def _place_labels(ax, items, fontsize=11) -> None:
     for x, y, text, colour in items:
         lines = text.split("\n")
         w, h = max(len(line) for line in lines) * char_w, len(lines) * line_h
-        row = 14 + h / scale  # a second row of labels below or above the first, in points
+        row = 16 + h / scale  # a second row of labels, clear of the first, in points
+        slots = [((10, 0), right, "center"), ((-10, 0), left, "center"),
+                 ((10, -14), right, "top"), ((-10, -14), left, "top"), ((10, 14), right, "bottom"), ((-10, 14), left, "bottom"),
+                 ((0, -row), "center", "top"), ((0, row), "center", "bottom")]
         px, py = ax.transData.transform((x, y))
-        beside = [((10, 0), right, "center"), ((-10, 0), left, "center")]
-        below = [((10, -14), right, "top"), ((-10, -14), left, "top"), ((10, -row), right, "top"), ((-10, -row), left, "top")]
-        above = [((10, 14), right, "bottom"), ((-10, 14), left, "bottom"), ((10, row), right, "bottom"), ((-10, row), left, "bottom")]
-        near_top = py > frame.y0 + 0.8 * (frame.y1 - frame.y0)
-        near_bottom = py < frame.y0 + 0.2 * (frame.y1 - frame.y0)
-        slots = (below + beside + above) if near_top else (above + beside + below) if near_bottom else (beside + below + above)
         best, least = None, None
         for slot in slots:
             (dx, dy), ha, va = slot
-            x0 = px + dx * scale - (w if ha == left else 0)
+            x0 = px + dx * scale - (w if ha == left else w / 2 if ha == "center" else 0)
             y0 = py + dy * scale - (h if va == "top" else h / 2 if va == "center" else 0)
             box = (x0, y0, x0 + w, y0 + h)
             inside = box[0] >= frame.x0 and box[2] <= frame.x1 and box[1] >= frame.y0 and box[3] <= frame.y1
@@ -161,8 +158,9 @@ def _place_labels(ax, items, fontsize=11) -> None:
         slot, box = best if best else (least[1], least[2])
         boxes.append(box)
         (dx, dy), ha, va = slot
+        leader = dict(arrowstyle="-", color=BASELINE, linewidth=0.8, shrinkA=0, shrinkB=8) if ha == "center" else None
         ax.annotate(text, (x, y), xytext=(dx, dy), textcoords="offset points", ha=ha, va=va, fontsize=fontsize,
-                    color=colour, linespacing=1.2)
+                    color=colour, linespacing=1.2, arrowprops=leader)
 
 
 def titles(tables: dict) -> dict[str, str]:
@@ -430,9 +428,10 @@ def chart_frontier(tables, out_dir, title) -> Path:
         (axes[1], {m: (float(pooled.loc[m, "median_ms"]), float(acc.loc[m, "accuracy"])) for m in models},
          "Median latency per decision, ms", "{:.0f} ms"),
     ]
-    span = max(float(acc.loc[models, "accuracy"].max()) - float(acc.loc[models, "accuracy"].min()), 0.03)
-    low = max(0.0, float(acc.loc[models, "accuracy"].min()) - 1.6 * span)
-    high = float(acc.loc[models, "accuracy"].max()) + 0.6 * span  # may pass 100% so the top labels have room
+    span = float(acc.loc[models, "accuracy"].max()) - float(acc.loc[models, "accuracy"].min())
+    pad = max(0.2 * span, 0.025)
+    low = max(0.0, float(acc.loc[models, "accuracy"].min()) - pad)
+    high = float(acc.loc[models, "accuracy"].max()) + pad  # may pass 100% so labels beside the top points have room
     for ax, points, xlabel, fmt in panels:
         front = frontier(points)
         if len(front) > 1:
