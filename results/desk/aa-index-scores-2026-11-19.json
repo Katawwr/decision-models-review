@@ -1,1 +1,80 @@
-"{\n  \"captured\": \"2026-11-19T12:04:10.411Z\",\n  \"page\": \"https://artificialanalysis.ai/evaluations/artificial-analysis-decision-index\",\n  \"note\": \"Integer bar labels from the Artificial Analysis Decision Index score chart, read from the page DOM. Bars are shown in the order listed; decimals are not shown on the chart.\",\n  \"models_shown\": \"18 of 25 models\",\n  \"pairs\": [\n    {\n      \"model\": \"d1.2-ultra\",\n      \"index_label\": 75\n    },\n    {\n      \"model\": \"Drex Max v1.1\",\n      \"index_label\": 73\n    },\n    {\n      \"model\": \"SubQ Snap 1.2\",\n      \"index_label\": 73\n    },\n    {\n      \"model\": \"GLiDE v1.2\",\n      \"index_label\": 73\n    },\n    {\n      \"model\": \"Mammoth 27B\",\n      \"index_label\": 71\n    },\n    {\n      \"model\": \"Decider v1.3\",\n      \"index_label\": 70\n    },\n    {\n      \"model\": \"d1.2\",\n      \"index_label\": 69\n    },\n    {\n      \"model\": \"Microsoft-Decision-1.1\",\n      \"index_label\": 68\n    },\n    {\n      \"model\": \"Elephant 9B\",\n      \"index_label\": 66\n    },\n    {\n      \"model\": \"Jev 1.14\",\n      \"index_label\": 66\n    },\n    {\n      \"model\": \"Gemini Decision 1\",\n      \"index_label\": 66\n    },\n    {\n      \"model\": \"Decider Flash v1.3\",\n      \"index_label\": 64\n    },\n    {\n      \"model\": \"Mercury Decide\",\n      \"index_label\": 62\n    },\n    {\n      \"model\": \"Celeris-1.1 Decision\",\n      \"index_label\": 62\n    },\n    {\n      \"model\": \"Drex 2.0\",\n      \"index_label\": 62\n    },\n    {\n      \"model\": \"Clef\",\n      \"index_label\": 60\n    },\n    {\n      \"model\": \"GPT-6 Luna (Decisions)\",\n      \"index_label\": 60\n    },\n    {\n      \"model\": \"Clef-Omni\",\n      \"index_label\": 58\n    }\n  ]\n}"
+{
+ "captured": "2026-11-19T12:04:10.411Z",
+ "page": "https://artificialanalysis.ai/evaluations/artificial-analysis-decision-index",
+ "note": "Integer bar labels from the Artificial Analysis Decision Index score chart, read from the page DOM. Bars are shown in the order listed; decimals are not shown on the chart.",
+ "models_shown": "18 of 25 models",
+ "pairs": [
+  {
+   "model": "d1.2-ultra",
+   "index_label": 75
+  },
+  {
+   "model": "Drex Max v1.1",
+   "index_label": 73
+  },
+  {
+   "model": "SubQ Snap 1.2",
+   "index_label": 73
+  },
+  {
+   "model": "GLiDE v1.2",
+   "index_label": 73
+  },
+  {
+   "model": "Mammoth 27B",
+   "index_label": 71
+  },
+  {
+   "model": "Decider v1.3",
+   "index_label": 70
+  },
+  {
+   "model": "d1.2",
+   "index_label": 69
+  },
+  {
+   "model": "Microsoft-Decision-1.1",
+   "index_label": 68
+  },
+  {
+   "model": "Elephant 9B",
+   "index_label": 66
+  },
+  {
+   "model": "Jev 1.14",
+   "index_label": 66
+  },
+  {
+   "model": "Gemini Decision 1",
+   "index_label": 66
+  },
+  {
+   "model": "Decider Flash v1.3",
+   "index_label": 64
+  },
+  {
+   "model": "Mercury Decide",
+   "index_label": 62
+  },
+  {
+   "model": "Celeris-1.1 Decision",
+   "index_label": 62
+  },
+  {
+   "model": "Drex 2.0",
+   "index_label": 62
+  },
+  {
+   "model": "Clef",
+   "index_label": 60
+  },
+  {
+   "model": "GPT-6 Luna (Decisions)",
+   "index_label": 60
+  },
+  {
+   "model": "Clef-Omni",
+   "index_label": 58
+  }
+ ]
+}

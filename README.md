@@ -23,7 +23,7 @@ The protocol in [PLAN.md](PLAN.md) was frozen before the first paid call (commit
 - [results/hard_tier/SUMMARY.md](results/hard_tier/SUMMARY.md): the same tables for the hard tier.
 - [results/charts/](results/charts/) and [results/hard_tier/charts/](results/hard_tier/charts/): the figures, each with its takeaway in the title and a `charts.json` naming the table behind it.
 - [results/handcheck/](results/handcheck/): blind hand-check sheets: a 100-row sample, the rows on which the models disagree, and all 116 hard-tier rows.
-- [results/desk/](results/desk/): the Artificial Analysis Decision Index as published on 19 November 2026 and the reweighting check.
+- [results/desk/](results/desk/): the Artificial Analysis Decision Index scores as published on 19 November 2026, notes on its methodology page with links to archived copies, and the reweighting check.
 - [runs/raw/RUN_INFO.md](runs/raw/RUN_INFO.md): run dates, model version strings as returned, prices on the day and the route.
 
 ## Layout
@@ -84,7 +84,7 @@ Each raw record holds the call's answer, latency, token counts, cost, the model 
 
 ## Data and licences
 
-The code, manifests, hard-tier rows, run records, tables and charts in this repository are released under the MIT licence (see [LICENSE](LICENSE)). The source datasets are not included: Fusion First (MIT), JevBench (MIT) and When2Call (its own licence) are fetched at pinned commits as described in [data/SOURCES.md](data/SOURCES.md). The files in `results/desk/` quote Artificial Analysis's published methodology and scores, dated, so that the reweighting can be checked; they remain Artificial Analysis's.
+The code, manifests, hard-tier rows, run records, tables and charts in this repository are released under the MIT licence (see [LICENSE](LICENSE)). The source datasets are not included: Fusion First (MIT), JevBench (MIT) and When2Call (its own licence) are fetched at pinned commits as described in [data/SOURCES.md](data/SOURCES.md). The files in `results/desk/` record Artificial Analysis's published scores and the parts of its methodology that the reweighting depends on, dated and with links to archived copies of the pages; the pages themselves remain Artificial Analysis's.
 
 ## Limits
 
