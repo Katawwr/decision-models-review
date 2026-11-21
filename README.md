@@ -63,6 +63,7 @@ python src/charts.py --results results/hard_tier --out results/hard_tier/charts 
 python src/handcheck.py sample --n 100
 python src/handcheck.py disagreements
 python src/handcheck.py tier --tier-dir data/hard_tier
+python src/analyse.py --exclude rejected_ids.txt      # drop rows rejected in a hand check, one id per line
 ```
 
 | Run | What it is |

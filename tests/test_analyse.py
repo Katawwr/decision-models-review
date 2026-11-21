@@ -342,3 +342,22 @@ def test_repeat_range_counts_errors_per_repeat_and_by_majority():
     assert int(m1.loc["majority", "misses"]) == 1 and int(m1.loc["majority", "false_blocks"]) == 0
     assert int(m1.loc["majority", "split_decisions"]) == 3
     assert list(m1.n) == [3, 3, 3, 3]
+
+
+def test_exclude_drops_rows_by_id_before_every_table(tmp_path):
+    import json
+
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "A1.jsonl").write_text("\n".join(json.dumps(r) for r in records_for("A1", A1)) + "\n", encoding="utf-8")
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text("\n".join(json.dumps(e) for e in MANIFEST) + "\n", encoding="utf-8")
+    exclude = tmp_path / "rejected.txt"
+    exclude.write_text("# rejected in the hand check\nr1\n\nr8\n", encoding="utf-8")
+    out = tmp_path / "out"
+    assert an.main(["--raw-dir", str(raw), "--manifest", str(manifest), "--out", str(out), "--exclude", str(exclude)]) == 0
+    accuracy = pd.read_csv(out / "accuracy.csv")
+    assert set(accuracy.n) == {6}
+    assert set(accuracy.n_hijack) == {3} and set(accuracy.n_legit) == {3}
+    summary = (out / "SUMMARY.md").read_text(encoding="utf-8")
+    assert "Excluded rows: 2" in summary and "r1, r8" in summary

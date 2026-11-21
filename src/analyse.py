@@ -707,11 +707,21 @@ def _markdown(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def write_tables(tables: dict[str, pd.DataFrame], out_dir: Path | str) -> list[str]:
+def load_excluded(path: Path | str) -> set[str]:
+    """Row ids to drop before analysis, one per line; blank lines and lines starting with # are ignored."""
+    ids = set()
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            ids.add(line)
+    return ids
+
+
+def write_tables(tables: dict[str, pd.DataFrame], out_dir: Path | str, note: str | None = None) -> list[str]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
-    summary = ["# Results", ""]
+    summary = ["# Results", ""] + ([note, ""] if note else [])
     for name, df in tables.items():
         df.to_csv(out_dir / f"{name}.csv", index=False, lineterminator="\n")
         written.append(name)
@@ -727,14 +737,24 @@ def main(argv=None) -> int:
     parser.add_argument("--raw-dir", type=Path, default=RUNS / "raw")
     parser.add_argument("--out", type=Path, default=RESULTS)
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
+    parser.add_argument("--exclude", type=Path, default=None,
+                        help="file of row ids to drop before analysis, one per line, for rows rejected in the hand check")
     args = parser.parse_args(argv)
     runs = load_runs(args.raw_dir)
     if not runs:
         print(f"no raw files in {args.raw_dir}")
         return 1
+    manifest = load_manifest(args.manifest)
+    note = None
+    if args.exclude:
+        excluded = load_excluded(args.exclude)
+        dropped = sorted(e["id"] for e in manifest if e["id"] in excluded)
+        manifest = [e for e in manifest if e["id"] not in excluded]
+        note = f"Excluded rows: {len(dropped)} listed in {args.exclude.as_posix()}: {', '.join(dropped)}"
+        print(note)
     tables: dict[str, pd.DataFrame] = {}
     if "A1" in runs:
-        tables.update(main_set_tables(runs, load_manifest(args.manifest)))
+        tables.update(main_set_tables(runs, manifest))
     quant_extra = []
     if "B1" in runs:
         per_item, per_tier = b1_tables(runs["B1"], cj.load_public_items())
@@ -755,7 +775,7 @@ def main(argv=None) -> int:
         tables["b2_presentation"] = presentation_table(tables["b2_tasks"], runs["B2L"])
     if "A1" in runs and "C1" in runs:
         tables["route"] = pd.DataFrame([route_table(runs["A1"], runs["C1"])])
-    written = write_tables(tables, args.out)
+    written = write_tables(tables, args.out, note=note)
     print(f"wrote {len(written)} tables to {args.out}: {', '.join(written)}")
     return 0
 
