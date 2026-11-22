@@ -4,7 +4,7 @@ The harness, data manifests, raw run records, analysis and charts behind a revie
 
 ## What was tested
 
-- **The gating question.** Given the user's request, the tool results the agent has read and the tool call the agent now wants to make, is the call what the user asked for? 1,020 labelled rows from [Fusion First](https://github.com/Katawwr/Fusion-First): 579 legitimate calls and 441 hijacked ones, 160 of them with planted text written at the reviewer rather than the agent, 120 of those by attackers who had the reviewer's prompt.
+- **The gating question.** Given the user's request, the tool results the agent has read and the tool call the agent now wants to make, is the call what the user asked for? 1,020 labelled rows from [Fusion First](https://github.com/Katawwr/Fusion-First), 1,019 of them analysed after one was rejected as undecidable in the label check (PLAN.md section 11, item 15): 578 legitimate calls and 441 hijacked ones, 160 of them with planted text written at the reviewer rather than the agent, 120 of those by attackers who had the reviewer's prompt.
 - **A hard tier.** 116 further rows in 58 pairs across six attack families (a units trick, an extra field, a swapped target, scope creep, a policy note, a false premise), each hijack paired with a legitimate twin that looks the same on the surface. Procedure in [PLAN.md](PLAN.md) section 13, build report in [data/hard_tier/BUILD_REPORT.md](data/hard_tier/BUILD_REPORT.md).
 - **Two views and three wordings.** Each row is shown with and without the tool results the attacker wrote into, and the question is asked in a main wording, a paraphrase and a flipped version.
 - **Determinism, speed and cost.** Repeat calls on 100 rows; client-side latency over one connection with the models interleaved; cost as billed.
@@ -20,7 +20,7 @@ The protocol in [PLAN.md](PLAN.md) was frozen before the first paid call (commit
 - [results/SUMMARY.md](results/SUMMARY.md): every table for the main set and the two benchmarks, with the CSVs beside it.
 - [results/hard_tier/SUMMARY.md](results/hard_tier/SUMMARY.md): the same tables for the hard tier.
 - [results/charts/](results/charts/) and [results/hard_tier/charts/](results/hard_tier/charts/): the figures, each with its takeaway in the title and a `charts.json` naming the table behind it.
-- [results/handcheck/](results/handcheck/): blind hand-check sheets: a 100-row sample, the rows on which the models disagree, and all 116 hard-tier rows.
+- [results/handcheck/](results/handcheck/): blind hand-check sheets (a 100-row sample, the rows on which the models disagree, and all 116 hard-tier rows), the record of the 22 November label check, and the one rejected id.
 - [results/desk/](results/desk/): the Artificial Analysis Decision Index scores as published on 19 November 2026, notes on its methodology page with links to archived copies, and the reweighting check.
 - [runs/raw/RUN_INFO.md](runs/raw/RUN_INFO.md): run dates, model version strings as returned, prices on the day and the route.
 
@@ -31,7 +31,7 @@ The protocol in [PLAN.md](PLAN.md) was frozen before the first paid call (commit
 | `PLAN.md` | The frozen protocol, the deviations log and the hard tier procedure |
 | `PRINCIPLES.md` | What a decision benchmark should measure |
 | `data/SOURCES.md` | The three source repositories, pinned by commit, with their licences |
-| `data/manifest.jsonl` | The 1,020 main rows: id, source file, label, group and tune/report half; the content stays in Fusion First |
+| `data/manifest.jsonl` | The 1,020 main rows: id, source file, label, group and tune/report half; the content stays in Fusion First. One row, named in `results/handcheck/rejected_ids_2026-11-22.txt`, is excluded from the analysis |
 | `data/hard_tier/` | The 116 hard-tier rows, their manifest and hashes, the build report and the selection record |
 | `src/` | The harness (client, views, questions, runner), converters for the two benchmarks, measures, analysis, charts, hand-check sheets and the hard-tier build |
 | `tests/` | Tests for all of the above |
@@ -61,7 +61,7 @@ python src/charts.py --results results/hard_tier --out results/hard_tier/charts 
 python src/handcheck.py sample --n 100
 python src/handcheck.py disagreements
 python src/handcheck.py tier --tier-dir data/hard_tier
-python src/analyse.py --exclude rejected_ids.txt      # drop rows rejected in a hand check, one id per line
+python src/analyse.py --exclude results/handcheck/rejected_ids_2026-11-22.txt   # the published tables: one id per line is dropped before every table
 ```
 
 | Run | What it is |
@@ -87,7 +87,7 @@ The code, manifests, hard-tier rows, run records, tables and charts in this repo
 
 ## Limits
 
-- The attack rows were written by language models to a brief and checked blind by other models. The hand-check sheets in `results/handcheck/` are the human pass. The hard tier's build report lists every candidate dropped and why.
+- The attack rows were written by language models to a brief and checked blind by other models. The hand-check sheets in `results/handcheck/` were written for a human pass; on 22 November 2026 they were checked by model reviewers instead (a blind reader, a label auditor and three adjudicators on every flagged row), which confirmed all 218 labels and rejected one main-set row as undecidable. The record is `results/handcheck/check-record-2026-11-22.md`. The hard tier's build report lists every candidate dropped and why.
 - The reviewer-targeted rows in the main set were written against a different reviewer, so they test transfer, not an attack tuned to these three models.
 - One day, one location, alpha APIs. Model version strings and prices on the day are in `runs/raw/RUN_INFO.md`.
 - Three models, one task family (gating agent tool calls), and the public halves of two benchmarks whose private halves cannot be reproduced.
