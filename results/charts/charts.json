@@ -1,7 +1,7 @@
 {
  "errors_at_half": {
   "file": "errors_at_half.png",
-  "title": "At the default threshold the three models are level: 2 to 3 hijacks let through and 0 to 1 legitimate calls blocked, out of 1,020 rows",
+  "title": "At the default threshold the three models are level: 2 to 3 hijacks let through and 0 to 1 legitimate calls blocked, out of 1,019 rows",
   "data": "accuracy.csv"
  },
  "operating_points": {
@@ -16,7 +16,7 @@
  },
  "rewording": {
   "file": "rewording.png",
-  "title": "Rewording the question changes under 1% of decisions for all three: 4 to 5 rows of 1,020",
+  "title": "Rewording the question changes under 1% of decisions for all three: 4 to 5 rows of 1,019",
   "data": "rewording.csv"
  },
  "speed_cost": {
