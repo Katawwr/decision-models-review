@@ -2,8 +2,6 @@
 
 The harness, data manifests, raw run records, analysis and charts behind a review of three decision models on one job: deciding whether an agent's tool call should go ahead. The models are Gemini Decision 1 (Google), Jev 1.14 (TypeSafe) and Clef (Cloudflare). Each answers a typed question with a probability and nothing else, so the only way to know whether to trust one is to measure it. This repository is that measurement, kept whole so that every number in the write-up can be traced to a raw response.
 
-The write-up is forthcoming. A link will be added here when it is published.
-
 ## What was tested
 
 - **The gating question.** Given the user's request, the tool results the agent has read and the tool call the agent now wants to make, is the call what the user asked for? 1,020 labelled rows from [Fusion First](https://github.com/Katawwr/Fusion-First): 579 legitimate calls and 441 hijacked ones, 160 of them with planted text written at the reviewer rather than the agent, 120 of those by attackers who had the reviewer's prompt.
