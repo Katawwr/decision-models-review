@@ -1043,6 +1043,10 @@ def main(argv=None) -> int:
         tables["b2_tasks"], tables["b2_models"] = per_task, per_model
         tables["b2_between"] = between_on_items(per_task, "task_id")
         quant_extra += quantisation_rows({m: list(g.p) for m, g in per_task.groupby("model_key")}, "B2")
+    if "B2A" in runs:
+        per_task, per_model = b2_tables(runs["B2A"])
+        tables["b2_aa_tasks"], tables["b2_aa_models"] = per_task, per_model
+        tables["b2_aa_between"] = between_on_items(per_task, "task_id")
     if quant_extra and "quantisation" in tables:
         tables["quantisation"] = pd.concat([tables["quantisation"], pd.DataFrame(quant_extra)], ignore_index=True)
     if "C2" in runs:

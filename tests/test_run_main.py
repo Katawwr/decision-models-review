@@ -197,3 +197,12 @@ def test_b2q_runs_the_aa_presentation_on_the_same_tasks_under_the_sweep_run_name
     assert set(t.row_id for t in tasks) == set(t.row_id for t in b2l)
     assert all(t.meta["wording"] == "when2call-aa" for t in tasks)
     assert all(t.state.startswith("<system>") for t in tasks)
+
+
+def test_b2a_runs_every_filtered_task_in_the_aa_presentation():
+    tasks = rm.build_tasks("B2A")
+    b2 = rm.build_tasks("B2")
+    assert len(tasks) == len(b2) == 3423 * 3
+    assert set(t.run for t in tasks) == {"B2A"}
+    assert set(t.row_id for t in tasks) == set(t.row_id for t in b2)
+    assert all(t.meta["wording"] == "when2call-aa" and t.state.startswith("<system>") for t in tasks)

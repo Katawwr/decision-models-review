@@ -35,7 +35,7 @@ MAIN_RUNS = {
     "C1": {"view": "B", "wordings": ["main"], "rows": 200, "repeats": 1, "route": "gemini", "pace": 2.6},
 }
 BENCHMARK_RUNS = ("B1", "B2")
-EXTRA_RUNS = ("C2", "B2L", "B2P", "B2Q")  # PLAN.md section 11 items 7 and 14
+EXTRA_RUNS = ("C2", "B2L", "B2P", "B2Q", "B2A")  # PLAN.md section 11 items 7, 14 and 16
 SWEEP_VARIANTS = ("minimal", "numbered", "bare")  # B2P: three further presentations of the B2L tasks
 AA_VARIANTS = ("aa",)  # B2Q: the presentation shown on Artificial Analysis's When2Call page; recorded as run B2P-aa
 ALL_RUNS = tuple(MAIN_RUNS) + BENCHMARK_RUNS + EXTRA_RUNS
@@ -101,10 +101,13 @@ def build_tasks(name: str, entries: list[dict] | None = None, rows: dict | None 
             }
             planned.append((item["id"], item["state"], {"q": item["question"]}, meta))
         return plan_tasks(planned, dict(MODELS), {}, run="B1")
-    if name in ("B2", "B2L", "B2P", "B2Q", "C2"):
+    if name in ("B2", "B2L", "B2P", "B2Q", "B2A", "C2"):
         kept, _ = cw.apply_aa_filter(cw.load_items(), cw.load_filtered_source_ids())
         if name == "B2":
             return plan_tasks(_when2call_planned(kept, False, "openrouter", "when2call"), dict(MODELS), {}, run="B2")
+        if name == "B2A":
+            planned = _when2call_planned(kept, False, "openrouter", "when2call-aa", variant="aa")
+            return plan_tasks(planned, dict(MODELS), {}, run="B2A")
         if name == "B2L":
             planned = _when2call_planned(select_when2call(kept, 200), True, "openrouter", "when2call-named")
             return plan_tasks(planned, dict(MODELS), {}, run="B2L")
