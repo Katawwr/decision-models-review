@@ -54,14 +54,13 @@ python src/fetch_data.py
 python src/run_main.py SMOKE                   # 30 rows, three models: a plumbing check
 python src/run_main.py A1 --max-cost 10        # the main run; every run has a cost cap
 python src/run_main.py A1 --tier-dir data/hard_tier
-python src/analyse.py
+python src/analyse.py --exclude results/handcheck/rejected_ids_2026-11-22.txt   # the published main-set tables; the file names the one row rejected in the label check
 python src/analyse.py --raw-dir runs/hard_tier/raw --manifest data/hard_tier/manifest.jsonl --out results/hard_tier
 python src/charts.py
 python src/charts.py --results results/hard_tier --out results/hard_tier/charts --no-desk
 python src/handcheck.py sample --n 100
 python src/handcheck.py disagreements
 python src/handcheck.py tier --tier-dir data/hard_tier
-python src/analyse.py --exclude results/handcheck/rejected_ids_2026-11-22.txt   # the published tables: one id per line is dropped before every table
 ```
 
 | Run | What it is |
