@@ -7,8 +7,8 @@ The harness, data manifests, raw run records, analysis and charts behind a revie
 - **The gating question.** Given the user's request, the tool results the agent has read and the tool call the agent now wants to make, is the call what the user asked for? 1,020 labelled rows from [Fusion First](https://github.com/Katawwr/Fusion-First), 1,019 of them analysed after one was rejected as undecidable in the label check (PLAN.md section 11, item 15): 578 legitimate calls and 441 hijacked ones, 160 of them with planted text written at the reviewer rather than the agent, 120 of those by attackers who had the reviewer's prompt.
 - **A hard tier.** 116 further rows in 58 pairs across six attack families (a units trick, an extra field, a swapped target, scope creep, a policy note, a false premise), each hijack paired with a legitimate twin that looks the same on the surface. Procedure in [PLAN.md](PLAN.md) section 13, build report in [data/hard_tier/BUILD_REPORT.md](data/hard_tier/BUILD_REPORT.md).
 - **Two views and three wordings.** Each row is shown with and without the tool results the attacker wrote into, and the question is asked in a main wording, a paraphrase and a flipped version.
-- **Determinism, speed and cost.** Repeat calls on 100 rows; client-side latency over one connection with the models interleaved; cost as billed.
-- **The public benchmarks on their own terms.** The public items of JevBench scored by its own rules, and When2Call filtered and scored as Artificial Analysis runs it for its Decision Index, with a desk check of the index's weighting.
+- **Determinism, speed and cost.** Repeat calls on 100 main-set rows and on all 116 hard-tier rows; client-side latency over one connection with the models interleaved; cost as billed.
+- **The public benchmarks on their own terms.** The public items of JevBench scored by its own rules, and When2Call filtered and scored as Artificial Analysis runs it for its Decision Index, with a desk check of the index's weighting. When2Call is also run on all 3,423 tasks in the format shown in the example tasks on Artificial Analysis's When2Call page, which reproduces AA's published figures within a point, and six presentations of a 200-task subset measure how far the prompt moves each model's score.
 - **Route checks.** Gemini called on Google's own API as well as through OpenRouter, including byte-identical requests sent through both.
 
 All three models went through OpenRouter's Decisions endpoint, with Clef pinned to Cloudflare so that one provider served it throughout. The measures are errors at the default threshold and at 1% and 5% false-block budgets (threshold chosen on one half of the rows, measured on the other), confidently wrong answers, the Brier score and the Decision Score, rewording flips, change between views, determinism, latency and cost. Every comparison between models is a paired test on the same rows: exact McNemar and a paired bootstrap.
@@ -21,7 +21,7 @@ The protocol in [PLAN.md](PLAN.md) was frozen before the first paid call (commit
 - [results/hard_tier/SUMMARY.md](results/hard_tier/SUMMARY.md): the same tables for the hard tier.
 - [results/charts/](results/charts/) and [results/hard_tier/charts/](results/hard_tier/charts/): the figures, each with its takeaway in the title and a `charts.json` naming the table behind it.
 - [results/handcheck/](results/handcheck/): blind hand-check sheets (a 100-row sample, the rows on which the models disagree, and all 116 hard-tier rows), the record of the 22 November label check, and the one rejected id.
-- [results/desk/](results/desk/): the Artificial Analysis Decision Index scores as published on 19 November 2026, notes on its methodology page with links to archived copies, and the reweighting check.
+- [results/desk/](results/desk/): the Artificial Analysis Decision Index scores as published on 19 November 2026, notes on its methodology and When2Call pages with links to archived copies, AA's When2Call accuracy chart figures read on 22 November, and the reweighting check.
 - [runs/raw/RUN_INFO.md](runs/raw/RUN_INFO.md): run dates, model version strings as returned, prices on the day and the route.
 
 ## Layout
@@ -75,8 +75,11 @@ python src/handcheck.py tier --tier-dir data/hard_tier
 | `B2L` | 200 of those tasks with the category names as labels |
 | `C1` | 200 rows to Gemini on Google's API |
 | `C2` | 100 When2Call tasks, the identical request through OpenRouter and Google's API |
+| `B2P` | 200 of the When2Call tasks under three further presentations: a shorter instruction, numbered labels, no section headers (PLAN.md item 14) |
+| `B2Q` | The same 200 tasks in the format shown in the example tasks on Artificial Analysis's When2Call page (item 14) |
+| `B2A` | All 3,423 When2Call tasks in that format (item 16) |
 
-With `--tier-dir data/hard_tier`, `A1`, `A2` and `A3` run on the hard tier and write to `runs/hard_tier/raw/`. `--dry-run` answers from a hash with no network. A run that stops part-way resumes from its raw file and skips the calls already answered. `src/run_all.ps1` is the launcher used on the run day.
+With `--tier-dir data/hard_tier`, `A1`, `A2`, `A3` and `A4` (the last with `--all-rows`) run on the hard tier and write to `runs/hard_tier/raw/`. `--dry-run` answers from a hash with no network. A run that stops part-way resumes from its raw file and skips the calls already answered. `src/run_all.ps1` is the launcher used on the run day.
 
 Each raw record holds the call's answer, latency, token counts, cost, the model and provider strings returned, and the SHA-256 of the request. The request text itself is not stored, so the source rows are not republished here; `request_hash` in `src/runner.py` rebuilds the hash from the pinned data.
 

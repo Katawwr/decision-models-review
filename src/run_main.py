@@ -35,7 +35,7 @@ MAIN_RUNS = {
     "C1": {"view": "B", "wordings": ["main"], "rows": 200, "repeats": 1, "route": "gemini", "pace": 2.6},
 }
 BENCHMARK_RUNS = ("B1", "B2")
-EXTRA_RUNS = ("C2", "B2L", "B2P", "B2Q", "B2A")  # PLAN.md section 11 items 7, 14 and 16
+EXTRA_RUNS = ("C2", "B2L", "B2P", "B2Q", "B2A")  # PLAN.md section 11 items 9, 14 and 16
 SWEEP_VARIANTS = ("minimal", "numbered", "bare")  # B2P: three further presentations of the B2L tasks
 AA_VARIANTS = ("aa",)  # B2Q: the presentation shown on Artificial Analysis's When2Call page; recorded as run B2P-aa
 ALL_RUNS = tuple(MAIN_RUNS) + BENCHMARK_RUNS + EXTRA_RUNS
