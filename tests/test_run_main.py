@@ -173,3 +173,27 @@ def test_all_rows_overrides_a_runs_row_count(entries, rows):
     assert len(tasks) == len(entries) * 3 * 3
     assert {t.row_id for t in tasks} == {e["id"] for e in entries}
     assert {t.repeat for t in tasks} == {0, 1, 2}
+
+
+def test_b2p_runs_three_presentations_of_the_b2l_tasks():
+    tasks = rm.build_tasks("B2P")
+    b2l = rm.build_tasks("B2L")
+    assert len(tasks) == 3 * len(b2l)
+    runs = sorted(set(t.run for t in tasks))
+    assert runs == ["B2P-bare", "B2P-minimal", "B2P-numbered"]
+    assert set(t.row_id for t in tasks) == set(t.row_id for t in b2l)
+    numbered = next(t for t in tasks if t.run == "B2P-numbered")
+    assert list(numbered.questions["q"]["criteria"]) == ["1", "2", "3", "4"]
+    bare = next(t for t in tasks if t.run == "B2P-bare")
+    assert "TOOLS AVAILABLE" not in bare.state
+    assert all(t.meta["wording"] == f"when2call-{t.run.split('-', 1)[1]}" for t in tasks)
+
+
+def test_b2q_runs_the_aa_presentation_on_the_same_tasks_under_the_sweep_run_name():
+    tasks = rm.build_tasks("B2Q")
+    b2l = rm.build_tasks("B2L")
+    assert len(tasks) == len(b2l)
+    assert set(t.run for t in tasks) == {"B2P-aa"}
+    assert set(t.row_id for t in tasks) == set(t.row_id for t in b2l)
+    assert all(t.meta["wording"] == "when2call-aa" for t in tasks)
+    assert all(t.state.startswith("<system>") for t in tasks)

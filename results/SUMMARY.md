@@ -336,6 +336,18 @@
 | B2L | clef | 200 | 200 | 0 | 0 | 0 |
 | B2L | gemini | 200 | 200 | 0 | 0 | 0 |
 | B2L | jev | 200 | 200 | 0 | 0 | 0 |
+| B2P-aa | clef | 200 | 200 | 0 | 0 | 0 |
+| B2P-aa | gemini | 200 | 200 | 0 | 0 | 0 |
+| B2P-aa | jev | 200 | 200 | 0 | 0 | 0 |
+| B2P-bare | clef | 200 | 200 | 0 | 0 | 0 |
+| B2P-bare | gemini | 200 | 200 | 0 | 0 | 0 |
+| B2P-bare | jev | 200 | 200 | 0 | 0 | 0 |
+| B2P-minimal | clef | 200 | 200 | 0 | 0 | 0 |
+| B2P-minimal | gemini | 200 | 200 | 0 | 0 | 0 |
+| B2P-minimal | jev | 200 | 200 | 0 | 0 | 0 |
+| B2P-numbered | clef | 200 | 200 | 0 | 0 | 0 |
+| B2P-numbered | gemini | 200 | 200 | 0 | 0 | 0 |
+| B2P-numbered | jev | 200 | 200 | 0 | 0 | 0 |
 | C1 | gemini-direct | 200 | 200 | 0 | 0 | 0 |
 | C2 | gemini | 100 | 100 | 0 | 0 | 0 |
 | C2 | gemini-direct | 100 | 100 | 0 | 0 | 0 |
@@ -411,6 +423,52 @@
 | gemini_vs_jev | labels_a_to_d | 200 | 14 | 13 | 1 | 0.005 | -0.045 | 0.055 | bootstrap |
 | gemini_vs_jev | named | 200 | 14 | 6 | 0.1153 | 0.04 | -0.005 | 0.085 | bootstrap |
 | gemini_vs_jev | change_in_gap | 200 |  |  |  | 0.035 | -0.005 | 0.075 | bootstrap |
+
+## b2_presentations
+
+| presentation | model_key | n | accuracy | accuracy_lo | accuracy_hi | decision_score | vs_letters_diff | vs_letters_lo | vs_letters_hi | vs_letters_p |
+|---|---|---|---|---|---|---|---|---|---|---|
+| letters | clef | 200 | 0.725 | 0.6593 | 0.7822 | 77.66 |  |  |  |  |
+| letters | gemini | 200 | 0.82 | 0.7609 | 0.8671 | 85.54 |  |  |  |  |
+| letters | jev | 200 | 0.815 | 0.7554 | 0.8627 | 84.64 |  |  |  |  |
+| aa | clef | 200 | 0.73 | 0.6646 | 0.7868 | 78.9 | 0.005 | -0.035 | 0.05 | 1 |
+| aa | gemini | 200 | 0.78 | 0.7176 | 0.8318 | 82.16 | -0.04 | -0.085 | 0.005 | 0.1153 |
+| aa | jev | 200 | 0.82 | 0.7609 | 0.8671 | 85.2 | 0.005 | -0.00475 | 0.005 | 1 |
+| bare | clef | 200 | 0.67 | 0.6022 | 0.7314 | 73.81 | -0.055 | -0.1 | -0.015 | 0.01921 |
+| bare | gemini | 200 | 0.775 | 0.7123 | 0.8274 | 81.63 | -0.045 | -0.09 | -0.005 | 0.06357 |
+| bare | jev | 200 | 0.79 | 0.7284 | 0.8407 | 82.89 | -0.025 | -0.06 | 0.005 | 0.2266 |
+| minimal | clef | 200 | 0.665 | 0.597 | 0.7268 | 73.87 | -0.06 | -0.095 | -0.025 | 0.001831 |
+| minimal | gemini | 200 | 0.835 | 0.7773 | 0.88 | 86.35 | 0.015 | -0.01467 | 0.03243 | 0.4531 |
+| minimal | jev | 200 | 0.805 | 0.7446 | 0.8539 | 83.88 | -0.01 | -0.01975 | 0.01224 | 0.625 |
+| numbered | clef | 200 | 0.71 | 0.6436 | 0.7685 | 77.01 | -0.015 | -0.03243 | 0.01467 | 0.4531 |
+| numbered | gemini | 200 | 0.82 | 0.7609 | 0.8671 | 85.86 | 0 | -0.02291 | 0.02291 | 1 |
+| numbered | jev | 200 | 0.81 | 0.75 | 0.8583 | 84.34 | -0.005 | -0.005 | 0.00475 | 1 |
+| named | clef | 200 | 0.775 | 0.7123 | 0.8274 | 81.44 | 0.05 | 0.01 | 0.09 | 0.03088 |
+| named | gemini | 200 | 0.875 | 0.822 | 0.9139 | 89.52 | 0.055 | 0.02 | 0.09 | 0.007385 |
+| named | jev | 200 | 0.835 | 0.7773 | 0.88 | 85.74 | 0.02 | -0.008474 | 0.02975 | 0.2188 |
+
+## b2_presentations_between
+
+| presentation | pair | n | a_only | b_only | mcnemar_p | accuracy_diff | accuracy_diff_lo | accuracy_diff_hi | interval_method |
+|---|---|---|---|---|---|---|---|---|---|
+| letters | clef_vs_gemini | 200 | 10 | 29 | 0.003378 | -0.095 | -0.155 | -0.035 | bootstrap |
+| letters | clef_vs_jev | 200 | 7 | 25 | 0.002102 | -0.09 | -0.145 | -0.04 | bootstrap |
+| letters | gemini_vs_jev | 200 | 14 | 13 | 1 | 0.005 | -0.045 | 0.055 | bootstrap |
+| aa | clef_vs_gemini | 200 | 10 | 20 | 0.09874 | -0.05 | -0.105 | 0 | bootstrap |
+| aa | clef_vs_jev | 200 | 7 | 25 | 0.002102 | -0.09 | -0.145 | -0.04 | bootstrap |
+| aa | gemini_vs_jev | 200 | 8 | 16 | 0.1516 | -0.04 | -0.09 | 0.005 | bootstrap |
+| bare | clef_vs_gemini | 200 | 7 | 28 | 0.0005083 | -0.105 | -0.16 | -0.05 | bootstrap |
+| bare | clef_vs_jev | 200 | 6 | 30 | 6.96e-05 | -0.12 | -0.175 | -0.065 | bootstrap |
+| bare | gemini_vs_jev | 200 | 12 | 15 | 0.7011 | -0.015 | -0.065 | 0.035 | bootstrap |
+| minimal | clef_vs_gemini | 200 | 7 | 41 | 6.24e-07 | -0.17 | -0.235 | -0.11 | bootstrap |
+| minimal | clef_vs_jev | 200 | 5 | 33 | 4.256e-06 | -0.14 | -0.2 | -0.085 | bootstrap |
+| minimal | gemini_vs_jev | 200 | 15 | 9 | 0.3075 | 0.03 | -0.02 | 0.08 | bootstrap |
+| numbered | clef_vs_gemini | 200 | 9 | 31 | 0.0006795 | -0.11 | -0.17 | -0.05 | bootstrap |
+| numbered | clef_vs_jev | 200 | 7 | 27 | 0.0008214 | -0.1 | -0.16 | -0.045 | bootstrap |
+| numbered | gemini_vs_jev | 200 | 13 | 11 | 0.8388 | 0.01 | -0.04 | 0.055 | bootstrap |
+| named | clef_vs_gemini | 200 | 8 | 28 | 0.001193 | -0.1 | -0.16 | -0.045 | bootstrap |
+| named | clef_vs_jev | 200 | 9 | 21 | 0.04277 | -0.06 | -0.115 | -0.005 | bootstrap |
+| named | gemini_vs_jev | 200 | 14 | 6 | 0.1153 | 0.04 | -0.005 | 0.085 | bootstrap |
 
 ## route
 

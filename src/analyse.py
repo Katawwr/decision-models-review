@@ -901,6 +901,75 @@ def presentation_between(b2_tasks: pd.DataFrame, named_records: list[dict]) -> p
                                        "accuracy_diff_lo", "accuracy_diff_hi", "interval_method"])
 
 
+def _scored_by_task(records: list[dict]) -> dict[str, dict[str, dict]]:
+    """Per model, per task: the When2Call score dict for the final record of each task."""
+    final, _ = _final(records)
+    out: dict[str, dict[str, dict]] = {}
+    for key, rec in final.items():
+        _, task_id, model, _ = key
+        meta = rec.get("meta") or {}
+        task = {"option_to_category": meta["option_to_category"], "correct_label": meta["correct_label"],
+                "correct_answer": meta["correct_answer"]}
+        out.setdefault(model, {})[task_id] = cw.score_task(task, ((rec.get("answers") or {}).get("q")) if rec.get("ok") else None)
+    return out
+
+
+def presentation_sweep(b2_tasks: pd.DataFrame, named_records: list[dict] | None,
+                       sweep_runs: dict[str, list[dict]]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Every presentation of the 200 presentation tasks side by side: the B2 labels (letters), the B2L category
+    names (named) and each B2P variant. Per presentation and model: accuracy with a Wilson interval, the Decision
+    Score, and the paired change against the letters presentation. Between models, per presentation: the paired
+    test on the same tasks."""
+    presentations: dict[str, dict[str, dict[str, dict]]] = {}
+    for run_name, records in sorted(sweep_runs.items()):
+        presentations[run_name.split("-", 1)[1]] = _scored_by_task(records)
+    if named_records:
+        presentations["named"] = _scored_by_task(named_records)
+    ids = sorted(set.intersection(*[set(t) for scored in presentations.values() for t in scored.values()])) if presentations else []
+    letters: dict[str, dict[str, dict]] = {}
+    for model, sub in b2_tasks.groupby("model_key"):
+        sub = sub.set_index("task_id")
+        letters[model] = {i: {"correct": bool(sub.loc[i, "correct"]), "decision_score": float(sub.loc[i, "decision_score"])}
+                          for i in ids if i in sub.index}
+    presentations = {"letters": letters, **presentations}
+    rows, between = [], []
+    for name, scored in presentations.items():
+        for model in sorted(scored):
+            got = [scored[model][i] for i in ids if i in scored[model]]
+            if not got:
+                continue
+            correct = [bool(s["correct"]) for s in got]
+            row = {"presentation": name, "model_key": model, "n": len(got), "accuracy": sum(correct) / len(got),
+                   "accuracy_lo": ms.wilson(sum(correct), len(got))[0], "accuracy_hi": ms.wilson(sum(correct), len(got))[1],
+                   "decision_score": sum(float(s["decision_score"]) for s in got) / len(got),
+                   "vs_letters_diff": None, "vs_letters_lo": None, "vs_letters_hi": None, "vs_letters_p": None}
+            if name != "letters" and model in letters:
+                both = [i for i in ids if i in scored[model] and i in letters[model]]
+                a = [bool(scored[model][i]["correct"]) for i in both]
+                b = [bool(letters[model][i]["correct"]) for i in both]
+                test = ms.mcnemar(a, b)
+                lo, hi, _ = ms.diff_interval(a, b)
+                row.update({"vs_letters_diff": (sum(a) - sum(b)) / len(both), "vs_letters_lo": lo, "vs_letters_hi": hi,
+                            "vs_letters_p": test["p"]})
+            rows.append(row)
+        for a_model, b_model in combinations(sorted(scored), 2):
+            both = [i for i in ids if i in scored[a_model] and i in scored[b_model]]
+            if not both:
+                continue
+            ca = [bool(scored[a_model][i]["correct"]) for i in both]
+            cb = [bool(scored[b_model][i]["correct"]) for i in both]
+            test = ms.mcnemar(ca, cb)
+            lo, hi, method = ms.diff_interval(ca, cb)
+            between.append({"presentation": name, "pair": f"{a_model}_vs_{b_model}", "n": len(both), "a_only": test["a_only"],
+                            "b_only": test["b_only"], "mcnemar_p": test["p"], "accuracy_diff": (sum(ca) - sum(cb)) / len(both),
+                            "accuracy_diff_lo": lo, "accuracy_diff_hi": hi, "interval_method": method})
+    columns = ["presentation", "model_key", "n", "accuracy", "accuracy_lo", "accuracy_hi", "decision_score",
+               "vs_letters_diff", "vs_letters_lo", "vs_letters_hi", "vs_letters_p"]
+    between_columns = ["presentation", "pair", "n", "a_only", "b_only", "mcnemar_p", "accuracy_diff", "accuracy_diff_lo",
+                       "accuracy_diff_hi", "interval_method"]
+    return pd.DataFrame(rows, columns=columns), pd.DataFrame(between, columns=between_columns)
+
+
 def _markdown(df: pd.DataFrame) -> str:
     def fmt(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -981,6 +1050,10 @@ def main(argv=None) -> int:
     if "B2L" in runs and "b2_tasks" in tables:
         tables["b2_presentation"] = presentation_table(tables["b2_tasks"], runs["B2L"])
         tables["b2_presentation_between"] = presentation_between(tables["b2_tasks"], runs["B2L"])
+    sweep_runs = {name: records for name, records in runs.items() if name.startswith("B2P-")}
+    if sweep_runs and "b2_tasks" in tables:
+        tables["b2_presentations"], tables["b2_presentations_between"] = presentation_sweep(
+            tables["b2_tasks"], runs.get("B2L"), sweep_runs)
     if "A1" in runs and "C1" in runs:
         tables["route"] = pd.DataFrame([route_table(runs["A1"], runs["C1"])])
     written = write_tables(tables, args.out, note=note)

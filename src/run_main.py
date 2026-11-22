@@ -35,7 +35,9 @@ MAIN_RUNS = {
     "C1": {"view": "B", "wordings": ["main"], "rows": 200, "repeats": 1, "route": "gemini", "pace": 2.6},
 }
 BENCHMARK_RUNS = ("B1", "B2")
-EXTRA_RUNS = ("C2", "B2L")  # PLAN.md section 11 item 7
+EXTRA_RUNS = ("C2", "B2L", "B2P", "B2Q")  # PLAN.md section 11 items 7 and 14
+SWEEP_VARIANTS = ("minimal", "numbered", "bare")  # B2P: three further presentations of the B2L tasks
+AA_VARIANTS = ("aa",)  # B2Q: the presentation shown on Artificial Analysis's When2Call page; recorded as run B2P-aa
 ALL_RUNS = tuple(MAIN_RUNS) + BENCHMARK_RUNS + EXTRA_RUNS
 RUN_PACE = {"C1": 2.6, "C2": 2.6}
 
@@ -53,10 +55,10 @@ def select_when2call(items: list[dict], n: int) -> list[dict]:
     return sorted(items, key=lambda i: hashlib.sha1(i["uuid"].encode()).hexdigest())[:n]
 
 
-def _when2call_planned(items: list[dict], named: bool, route: str, wording: str) -> list:
+def _when2call_planned(items: list[dict], named: bool, route: str, wording: str, variant: str | None = None) -> list:
     planned = []
     for item in items:
-        task = cw.build_task(item, named=named)
+        task = cw.build_task(item, named=named, variant=variant)
         meta = {
             "route": route, "view": None, "wording": wording,
             "option_to_category": task["option_to_category"], "correct_label": task["correct_label"],
@@ -99,13 +101,20 @@ def build_tasks(name: str, entries: list[dict] | None = None, rows: dict | None 
             }
             planned.append((item["id"], item["state"], {"q": item["question"]}, meta))
         return plan_tasks(planned, dict(MODELS), {}, run="B1")
-    if name in ("B2", "B2L", "C2"):
+    if name in ("B2", "B2L", "B2P", "B2Q", "C2"):
         kept, _ = cw.apply_aa_filter(cw.load_items(), cw.load_filtered_source_ids())
         if name == "B2":
             return plan_tasks(_when2call_planned(kept, False, "openrouter", "when2call"), dict(MODELS), {}, run="B2")
         if name == "B2L":
             planned = _when2call_planned(select_when2call(kept, 200), True, "openrouter", "when2call-named")
             return plan_tasks(planned, dict(MODELS), {}, run="B2L")
+        if name in ("B2P", "B2Q"):
+            tasks = []
+            for variant in (SWEEP_VARIANTS if name == "B2P" else AA_VARIANTS):
+                planned = _when2call_planned(select_when2call(kept, 200), False, "openrouter", f"when2call-{variant}",
+                                             variant=variant)
+                tasks.extend(plan_tasks(planned, dict(MODELS), {}, run=f"B2P-{variant}"))
+            return tasks
         planned = _when2call_planned(select_when2call(kept, 100), False, "mixed", "when2call")
         models = {"gemini": MODELS["gemini"], "gemini-direct": GEMINI_DIRECT_MODEL}
         tasks = plan_tasks(planned, models, {}, run="C2")

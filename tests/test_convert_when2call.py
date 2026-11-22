@@ -103,3 +103,31 @@ def test_score_task_uses_the_probabilities_not_the_declared_choice_when_they_dis
     out = cw.score_task(task, answer)
     assert out["predicted_category"] == "tool_call"
     assert out["declared_choice_differs"] is True
+
+
+def test_presentation_variants_change_one_thing_each_and_keep_the_shuffle():
+    base = cw.build_task(item(), seed=20261119)
+    minimal = cw.build_task(item(), seed=20261119, variant="minimal")
+    numbered = cw.build_task(item(), seed=20261119, variant="numbered")
+    bare = cw.build_task(item(), seed=20261119, variant="bare")
+    assert cw.build_task(item(), seed=20261119, variant="letters") == base
+    assert minimal["state"] == base["state"] and minimal["option_to_category"] == base["option_to_category"]
+    assert minimal["question"]["instructions"] != base["question"]["instructions"]
+    assert list(numbered["option_to_category"]) == ["1", "2", "3", "4"]
+    assert list(numbered["option_to_category"].values()) == list(base["option_to_category"].values())
+    assert numbered["correct_answer"] == base["correct_answer"]
+    assert bare["option_to_category"] == base["option_to_category"]
+    assert "TOOLS AVAILABLE" not in bare["state"] and "USER MESSAGE" not in bare["state"]
+    assert item()["question"] in bare["state"]
+
+
+def test_aa_variant_reproduces_the_format_on_artificial_analysis_when2call_page():
+    base = cw.build_task(item(), seed=20261119)
+    aa = cw.build_task(item(), seed=20261119, variant="aa")
+    assert aa["option_to_category"] == base["option_to_category"] and aa["correct_label"] == base["correct_label"]
+    assert aa["question"]["instructions"].endswith("Which of these replies should the assistant give to the user's last message?")
+    assert aa["state"].startswith("<system>\nYou are a helpful AI assistant. \n")
+    assert "Only use a tool if it directly answers the user's question." in aa["state"]
+    assert "To use a tool, return JSON in the following format:" in aa["state"]
+    assert "<tool>" in aa["state"] and "</tool>" in aa["state"]
+    assert aa["state"].endswith(f"</system>\n\n<user>\n{item()['question']}\n</user>")

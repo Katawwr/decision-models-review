@@ -25,3 +25,10 @@ Makers' prices read on 19 November 2026 from: https://ai.google.dev/gemini-api/d
 - Model versions returned: the same strings as on 19 November for the OpenRouter models. The direct Gemini calls return no model string.
 - Prices: unchanged from the table above, checked by the per-call `usage.cost` of the new runs.
 - 21 November 2026, 11:14 to 11:19 UTC: A4 on the hard tier, all 116 rows, three repeats per model (`--all-rows`), 1,044 calls, none failed, $0.070, into `runs/hard_tier/raw/A4.jsonl`. Same client, route, pin and key handling. Model strings returned unchanged from 19 and 20 November.
+
+## Third run day, 22 November 2026
+
+- Plan state: item 14 of the deviations log recorded before the first call, and amended (the `aa` presentation) before B2Q ran.
+- Runs: B2P, the three generic presentations of the 200 B2L tasks (`minimal`, `numbered`, `bare`), 10:58 to 11:06 UTC, 1,800 calls, none failed, $0.238, into `runs/raw/B2P.jsonl` under the run names `B2P-minimal`, `B2P-numbered` and `B2P-bare`. B2Q, the presentation shown on Artificial Analysis's When2Call page (`aa`), 11:02 to 11:05 UTC, 600 calls, none failed, $0.090, into `runs/raw/B2Q.jsonl` under the run name `B2P-aa`. B2Q ran concurrently with the last third of B2P from the same client; latency from these runs is not used.
+- Same client, OpenRouter route, Clef pin and key handling as the earlier days. Model versions returned: the same strings as before.
+- Tables: `results/b2_presentations.csv` and `results/b2_presentations_between.csv`.

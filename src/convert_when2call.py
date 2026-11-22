@@ -21,6 +21,46 @@ INSTRUCTIONS = (
     "An assistant with the listed tools has received the user's message. Which of the four candidate "
     "replies should the assistant give?"
 )
+# When2Call's own default prompt, copied from evaluation/mcq/lm_eval_harness/when2call/utils.py at the pinned
+# commit (Apache-2.0), and the question Artificial Analysis shows on its When2Call evaluation page's example tasks
+# (read 22 November 2026; present in the Wayback Machine capture of 14 November 2026).
+WHEN2CALL_SYSTEM_PROMPT = (
+    "You are a helpful AI assistant. \n"
+    "You have access to the following tools described in <tool></tool> which you can use to answer the user's questions.\n"
+    "Only use a tool if it directly answers the user's question.\n"
+)
+WHEN2CALL_TOOL_USE = (
+    "To use a tool, return JSON in the following format:\n"
+    '{"name": "tool_name", "arguments": {"argument1": "value1", "argument2": "value2", ...}}\n'
+)
+AA_INSTRUCTIONS = (
+    "The state is a conversation between a user and an AI assistant that can use the tools listed in its system "
+    "prompt. Which of these replies should the assistant give to the user's last message?"
+)
+# Presentations of the same task. "letters" is the B2 run and "named" the B2L run; "minimal", "numbered" and "bare"
+# change one thing each against "letters"; "aa" reproduces the format on Artificial Analysis's evaluation page
+# (PLAN.md section 11, item 14).
+VARIANTS = {
+    "letters": {"labels": LABELS, "instructions": INSTRUCTIONS, "state": "headers"},
+    "named": {"labels": None, "instructions": INSTRUCTIONS, "state": "headers"},
+    "minimal": {"labels": LABELS, "instructions": "Which reply should the assistant give?", "state": "headers"},
+    "numbered": {"labels": ("1", "2", "3", "4"), "instructions": INSTRUCTIONS, "state": "headers"},
+    "bare": {"labels": LABELS, "instructions": INSTRUCTIONS, "state": "bare"},
+    "aa": {"labels": LABELS, "instructions": AA_INSTRUCTIONS, "state": "aa"},
+}
+
+
+def render_state(item: dict, style: str) -> str:
+    tools = "\n".join(item["tools"])
+    if style == "headers":
+        return f"TOOLS AVAILABLE TO THE ASSISTANT:\n{tools}\n\nUSER MESSAGE:\n{item['question']}"
+    if style == "bare":
+        return f"{tools}\n\n{item['question']}"
+    if style == "aa":
+        tool_string = "\n\n".join(f"<tool>{tool}</tool>" for tool in item["tools"])  # When2Call's default_format_tools
+        system = f"{WHEN2CALL_SYSTEM_PROMPT}\n{WHEN2CALL_TOOL_USE}\n\n{tool_string}"  # When2Call's process_docs_default
+        return f"<system>\n{system}\n</system>\n\n<user>\n{item['question']}\n</user>"
+    raise ValueError(f"unknown state style {style!r}")
 
 
 def load_items(path: Path | str = WHEN2CALL) -> list[dict]:
@@ -41,22 +81,23 @@ def apply_aa_filter(items: list[dict], filtered_ids: set[str]) -> tuple[list[dic
     return kept, removed
 
 
-def build_task(item: dict, seed: int = DEFAULT_SEED, named: bool = False) -> dict:
+def build_task(item: dict, seed: int = DEFAULT_SEED, named: bool = False, variant: str | None = None) -> dict:
     """One When2Call task as a choice question. Labels are A to D in a per-task shuffled order,
-    or, with named=True, the category names themselves in the same shuffled order."""
+    or, with named=True, the category names themselves in the same shuffled order. A variant from
+    VARIANTS changes the labels, the instruction or the state framing; the shuffle is the same for all."""
+    spec = VARIANTS["named" if named else (variant or "letters")]
     rng = random.Random(f"{seed}:{item['uuid']}")
     categories = list(CATEGORIES)
     rng.shuffle(categories)
-    option_to_category = dict(zip(categories if named else LABELS, categories))
+    labels = categories if spec["labels"] is None else spec["labels"]
+    option_to_category = dict(zip(labels, categories))
     criteria = {label: item["answers"][category] for label, category in option_to_category.items()}
     correct_label = next(label for label, category in option_to_category.items() if category == item["correct_answer"])
-    tools = "\n".join(item["tools"])
-    state = f"TOOLS AVAILABLE TO THE ASSISTANT:\n{tools}\n\nUSER MESSAGE:\n{item['question']}"
     return {
         "uuid": item["uuid"],
         "source_id": item.get("source_id"),
-        "state": state,
-        "question": {"type": "choice", "instructions": INSTRUCTIONS, "criteria": criteria},
+        "state": render_state(item, spec["state"]),
+        "question": {"type": "choice", "instructions": spec["instructions"], "criteria": criteria},
         "option_to_category": option_to_category,
         "correct_label": correct_label,
         "correct_answer": item["correct_answer"],
